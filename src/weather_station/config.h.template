@@ -1,0 +1,39 @@
+// config.h.template — copy to config.h and fill in your values.
+// config.h is .gitignored and will never be committed.
+
+#pragma once
+
+// ── Wi-Fi ─────────────────────────────────────────────────────────────────────
+#define WIFI_SSID     "your_wifi_ssid"
+#define WIFI_PASSWORD "your_wifi_password"
+
+// ── OpenWeatherMap ────────────────────────────────────────────────────────────
+// Free API key: https://openweathermap.org/api
+#define OWM_API_KEY   "your_openweathermap_api_key"
+#define OWM_CITY      "Bucharest"
+#define OWM_COUNTRY   "RO"
+
+// ── Timezone ──────────────────────────────────────────────────────────────────
+// POSIX rule for Europe/Bucharest (EET UTC+2, EEST UTC+3 DST)
+#define TIMEZONE_POSIX "EET-2EEST,M3.5.0/3,M10.5.0/4"
+#define NTP_SERVER     "pool.ntp.org"
+
+// ── Refresh intervals (milliseconds) ─────────────────────────────────────────
+#define CLOCK_REFRESH_MS    1000UL          // 1 second
+#define WEATHER_REFRESH_MS  600000UL        // 10 minutes
+#define WIFI_CHECK_MS       30000UL         // 30 seconds
+#define STALE_WEATHER_MS    1800000UL       // 30 minutes → show [stale]
+
+// ── Wi-Fi connect timeout ─────────────────────────────────────────────────────
+#define WIFI_CONNECT_TIMEOUT_MS 10000UL
+
+// ── SolarMan Cloud API ───────────────────────────────────────────────────────
+// Developer credentials: email service@solarmanpv.com to obtain appId/appSecret.
+// Station ID: visible in globalhome.solarmanpv.com URL (?plantId=XXXXXX).
+// SHA256 password: echo -n "yourpassword" | sha256sum   (or use an online tool)
+#define SOLARMAN_APP_ID        "your_app_id"
+#define SOLARMAN_APP_SECRET    "your_app_secret"
+#define SOLARMAN_EMAIL         "your@email.com"
+#define SOLARMAN_PASS_SHA256   "sha256_hex_of_your_password"
+#define SOLARMAN_STATION_ID    0UL              // numeric plant ID
+#define SOLARMAN_REFRESH_MS    300000UL         // 5 minutes

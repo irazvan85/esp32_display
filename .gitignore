@@ -1,0 +1,12 @@
+# Credentials — never commit
+src/weather_station/config.h
+
+# Arduino build artefacts
+build/
+*.elf
+*.bin
+*.map
+
+# OS
+.DS_Store
+Thumbs.db
