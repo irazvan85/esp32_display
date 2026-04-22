@@ -10,7 +10,7 @@ Layout (landscape, 240×135 px):
   │ [icon 18×18] temp (big)  feels/hum y=28  │
   │              condition             y=46  │
   ├──────────────────────────────────────────┤ y=118
-    │ ● wifi  age label            [1/5] y=120 │
+    │ ● wifi  age label            [1/6] y=120 │
   └──────────────────────────────────────────┘
 
   Page 1 – Tomorrow
@@ -191,24 +191,28 @@ class DisplayManager:
                 self._last_date_text = ""
                 self._syncing_drawn = False
             elif state.page == 1:
-                self._draw_title("Tomorrow", "[2/5]")
+                self._draw_title("Tomorrow", "[2/6]")
                 self._draw_tomorrow(state)
             elif state.page == 2:
-                self._draw_title("5-Day Forecast", "[3/5]")
+                self._draw_title("5-Day Forecast", "[3/6]")
                 self._draw_5day_header()
                 self._draw_5day(state)
             elif state.page == 3:
-                self._draw_title("Solar", "[4/5]")
+                self._draw_title("Solar", "[4/6]")
                 self._draw_solar(state)
-            else:
+            elif state.page == board.PAGE_PC_MONITOR:
                 self._last_metric_vals = {
                     "cpu_pct": None, "ram_pct": None, "disk_pct": None, "temp_c": None,
                     "gpu_pct": None, "gpu_temp_c": None,
                 }
                 self._metrics_subpage_last = -1
                 state.metrics_subpage = 0
-                self._draw_title("PC Monitor", "[5/5]")
+                self._draw_title("PC Monitor", "[5/6]")
                 self._draw_metrics(state, now_ms)
+            elif state.page == board.PAGE_ESP_STATUS:
+                state.esp_status_dirty = False
+                self._draw_title("ESP32 Status", "[6/6]")
+                self._draw_esp_status(state)
 
         if state.page == 0:
             self._draw_page0_dynamic(state, now_local, stale_ms, now_ms)
@@ -225,6 +229,9 @@ class DisplayManager:
             state.metrics_dirty = False
             state.status_dirty = False
             self._draw_metrics(state, now_ms)
+        elif state.page == board.PAGE_ESP_STATUS and getattr(state, "esp_status_dirty", False):
+            state.esp_status_dirty = False
+            self._draw_esp_status(state)
 
     # ── Page 0 ────────────────────────────────────────────────────────────────
 
@@ -304,7 +311,7 @@ class DisplayManager:
                              else "Fetching wx..."))
                 self._text_m(msg, 4, _Z_WX + 14, board.COL_STATUS, board.COL_BG)
 
-            self._draw_status_bar(state, now_ms, "[1/5]", state.last_weather_fetch_ms, "wx")
+            self._draw_status_bar(state, now_ms, "[1/6]", state.last_weather_fetch_ms, "wx")
 
     def _draw_clock_delta(self, new_text, new_x):
         old_text = self._last_clock_text
@@ -365,7 +372,7 @@ class DisplayManager:
             self._text_m(fc["condition"], 4, 76, board.COL_COND, board.COL_BG)
             self._text_m("Humidity: %d%%" % fc["humidity"], 4, 93, board.COL_FEELS, board.COL_BG)
 
-        self._draw_status_bar(state, 0, "[2/5]")
+        self._draw_status_bar(state, 0, "[2/6]")
 
     # ── Page 2 – 5-Day ───────────────────────────────────────────────────────
 
@@ -395,7 +402,7 @@ class DisplayManager:
                 if idx < 4:
                     self._hline(0, y + row_h - 2, board.DISPLAY_W, board.COL_DIVIDER)
 
-        self._draw_status_bar(state, 0, "[3/5]")
+        self._draw_status_bar(state, 0, "[3/6]")
 
     # ── Page 3 – Solar ────────────────────────────────────────────────────────
 
@@ -425,7 +432,7 @@ class DisplayManager:
             self._hline(bar_x, bar_y, bar_w, board.COL_STATUS)
             self._hline(bar_x, bar_y + bar_h - 1, bar_w, board.COL_STATUS)
 
-        self._draw_status_bar(state, 0, "[4/5]")
+        self._draw_status_bar(state, 0, "[4/6]")
 
     # ── Page 4 – PC Metrics ───────────────────────────────────────────────────
 
@@ -455,7 +462,7 @@ class DisplayManager:
             else:
                 msg = "Waiting PC data..."
             self._text_m(msg, 4, _TILE_Y + _TILE_H // 2 - 8, board.COL_STATUS, board.COL_BG)
-            self._draw_status_bar(state, now_ms, "[5/5]", state.last_metrics_fetch_ms, "pc")
+            self._draw_status_bar(state, now_ms, "[5/6]", state.last_metrics_fetch_ms, "pc")
             return
 
         m = state.metrics
@@ -540,7 +547,7 @@ class DisplayManager:
                 self._last_metric_vals[key] = pct
 
         uptime_str = self._format_uptime(m.get("uptime_s", 0))
-        self._draw_status_bar(state, now_ms, "[5/5]", state.last_metrics_fetch_ms, "up:" + uptime_str)
+        self._draw_status_bar(state, now_ms, "[5/6]", state.last_metrics_fetch_ms, "up:" + uptime_str)
 
     def _draw_metric_tile(self, x, pct, label, val_str, color):
         """Draw one square tile at x.
@@ -611,6 +618,84 @@ class DisplayManager:
         if days > 0:
             return "%dd %02dh" % (days, hours)
         return "%02dh %02dm" % (hours, minutes)
+
+    # ── Page 5 – ESP32 System Status ──────────────────────────────────────────
+
+    def _draw_esp_status(self, state):
+        """Draw ESP32 resource/network stats: RAM, CPU, flash, FS, IP, WiFi, uptime."""
+        self._fill_rect(0, 21, board.DISPLAY_W, _Z_DIV2 - 21, board.COL_BG)
+        self._fill_rect(0, _Z_STATUS, board.DISPLAY_W, board.DISPLAY_H - _Z_STATUS, board.COL_BG)
+
+        s = state.esp_status
+        if not s:
+            self._text_m("Collecting...", 4, 60, board.COL_STATUS, board.COL_BG)
+            self._draw_status_bar(state, 0, "[6/6]")
+            return
+
+        lbl_x = 4
+        val_x = 48  # wide enough for "WiFi:" label (5 chars × 8 px + 8 gap)
+
+        # ── RAM (y=21) ────────────────────────────────────────────────────────
+        ram_free = s.get("ram_free_kb", 0)
+        ram_used = s.get("ram_used_kb", -1)
+        if ram_free > 50:
+            ram_col = board.COL_ONLINE
+        elif ram_free > 20:
+            ram_col = board.COL_METRIC_TEMP_WARN
+        else:
+            ram_col = board.COL_OFFLINE
+        self._text_m("RAM:", lbl_x, 21, board.COL_STATUS, board.COL_BG)
+        if ram_used >= 0:
+            self._text_m("%dkB free %dkB used" % (ram_free, ram_used), val_x, 21, ram_col, board.COL_BG)
+        else:
+            self._text_m("%dkB free" % ram_free, val_x, 21, ram_col, board.COL_BG)
+
+        # ── CPU + Flash (y=37) ────────────────────────────────────────────────
+        cpu_mhz = s.get("cpu_mhz", 0)
+        flash_kb = s.get("flash_kb", 0)
+        flash_str = "%dMB" % (flash_kb // 1024) if flash_kb >= 1024 else "%dkB" % flash_kb
+        self._text_m("CPU:", lbl_x, 37, board.COL_STATUS, board.COL_BG)
+        self._text_m("%dMHz Flash:%s" % (cpu_mhz, flash_str), val_x, 37, board.COL_COND, board.COL_BG)
+
+        # ── Filesystem (y=53) ─────────────────────────────────────────────────
+        fs_free = s.get("fs_free_kb", 0)
+        fs_total = s.get("fs_total_kb", 0)
+        self._text_m("FS:", lbl_x, 53, board.COL_STATUS, board.COL_BG)
+        self._text_m("%dkB/%dkB free" % (fs_free, fs_total), val_x, 53, board.COL_COND, board.COL_BG)
+
+        # ── IP address (y=69) ─────────────────────────────────────────────────
+        ip = s.get("ip", "?")
+        ip_col = board.COL_ONLINE if state.wifi_online else board.COL_OFFLINE
+        self._text_m("IP:", lbl_x, 69, board.COL_STATUS, board.COL_BG)
+        self._text_m(ip, val_x, 69, ip_col, board.COL_BG)
+
+        # ── WiFi RSSI + channel (y=85) ────────────────────────────────────────
+        rssi = s.get("rssi", 0)
+        channel = s.get("channel", 0)
+        self._text_m("WiFi:", lbl_x, 85, board.COL_STATUS, board.COL_BG)
+        if state.wifi_online:
+            if rssi > -70:
+                rssi_col = board.COL_ONLINE
+            elif rssi > -85:
+                rssi_col = board.COL_METRIC_TEMP_WARN
+            else:
+                rssi_col = board.COL_OFFLINE
+            self._text_m("%ddBm Ch:%d" % (rssi, channel), val_x, 85, rssi_col, board.COL_BG)
+        else:
+            self._text_m("offline", val_x, 85, board.COL_OFFLINE, board.COL_BG)
+
+        # ── Uptime (y=101) ────────────────────────────────────────────────────
+        uptime_s = s.get("uptime_s", 0)
+        up_d = uptime_s // 86400
+        up_h = (uptime_s % 86400) // 3600
+        up_m = (uptime_s % 3600) // 60
+        self._text_m("Up:", lbl_x, 101, board.COL_STATUS, board.COL_BG)
+        if up_d > 0:
+            self._text_m("%dd %02dh %02dm" % (up_d, up_h, up_m), val_x, 101, board.COL_COND, board.COL_BG)
+        else:
+            self._text_m("%02dh %02dm" % (up_h, up_m), val_x, 101, board.COL_COND, board.COL_BG)
+
+        self._draw_status_bar(state, 0, "[6/6]")
 
     # ── Shared widgets ────────────────────────────────────────────────────────
 

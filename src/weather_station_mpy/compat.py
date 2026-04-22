@@ -26,3 +26,9 @@ def mem_free():
     if hasattr(gc, "mem_free"):
         return gc.mem_free()
     return -1
+
+
+def mem_alloc():
+    if hasattr(gc, "mem_alloc"):
+        return gc.mem_alloc()
+    return -1

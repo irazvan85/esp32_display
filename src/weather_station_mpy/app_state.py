@@ -55,6 +55,9 @@ class AppState:
             "ts": 0,
         }
 
+        self.esp_status_dirty = True
+        self.esp_status = {}  # populated by esp_status_task
+
     def mark_all_dirty(self):
         self.page_dirty = True
         self.status_dirty = True
@@ -64,3 +67,4 @@ class AppState:
         self.metrics_dirty = True
         self.clock_dirty = True
         self.date_dirty = True
+        self.esp_status_dirty = True

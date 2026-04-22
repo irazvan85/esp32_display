@@ -35,7 +35,7 @@ class WeatherService:
 
         response = None
         try:
-            response = requests.get(url)
+            response = self._get(url)
             if response.status_code != 200:
                 raise RuntimeError("OWM current HTTP %s" % response.status_code)
 
@@ -75,7 +75,7 @@ class WeatherService:
 
         response = None
         try:
-            response = requests.get(url)
+            response = self._get(url)
             if response.status_code != 200:
                 raise RuntimeError("OWM forecast HTTP %s" % response.status_code)
 
@@ -143,3 +143,11 @@ class WeatherService:
             y -= 1
         idx = (y + y // 4 - y // 100 + y // 400 + t[m - 1] + d) % 7
         return _DAYS[idx]
+
+    @staticmethod
+    def _get(url, timeout_s=5):
+        """GET with timeout; falls back to no-timeout if urequests doesn't support it."""
+        try:
+            return requests.get(url, timeout=timeout_s)
+        except TypeError:
+            return requests.get(url)

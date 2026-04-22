@@ -1,5 +1,7 @@
 """Wi-Fi connectivity helper for ESP32 MicroPython."""
 
+import gc
+
 try:
     network = __import__("network")
 except ImportError:
@@ -20,8 +22,16 @@ class WifiService:
             self._wlan = None
             return
 
+        # Attach to the STA interface that boot.py pre-initialised.
+        # network.WLAN(STA_IF) at this point returns the existing singleton
+        # without re-running esp_wifi_init(), so no OOM risk from heap
+        # fragmentation.  A gc.collect() is still useful to consolidate heap
+        # before any subsequent socket allocations.
+        gc.collect()
         self._wlan = network.WLAN(network.STA_IF)
-        self._wlan.active(True)
+        if not self._wlan.active():
+            # boot.py pre-init may have failed; try to activate now.
+            self._wlan.active(True)
 
     def is_connected(self):
         if self._wlan is None:
@@ -46,8 +56,24 @@ class WifiService:
         password = self._cfg["wifi"]["password"]
         timeout_ms = int(self._cfg["wifi"].get("connect_timeout_ms", 10_000))
 
+        # If the radio is still in a non-idle state (e.g. STAT_CONNECTING from a
+        # previous timeout), reset it first.  On IDF v5.5.1 calling connect()
+        # while status != STAT_IDLE (0) raises "OSError: Wifi Internal State
+        # Error" — the underlying WiFi task keeps trying even after the
+        # MicroPython-level timeout elapses.
+        try:
+            if self._wlan.status() != 0:  # 0 == network.STAT_IDLE
+                self._wlan.disconnect()
+                await asyncio.sleep_ms(300)
+        except OSError:
+            pass
+
         print("[WiFi] Connecting to %s" % ssid)
-        self._wlan.connect(ssid, password)
+        try:
+            self._wlan.connect(ssid, password)
+        except OSError as exc:
+            print("[WiFi] connect() error: %s" % exc)
+            return False
 
         started = ticks_ms()
         while (not self._wlan.isconnected()) and (
