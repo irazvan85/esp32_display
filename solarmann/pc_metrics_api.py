@@ -14,22 +14,45 @@ from typing import Optional
 
 import psutil
 
+try:
+    import wmi as _wmi  # Windows only — installed by start_pc_monitor.ps1
+    _WMI_AVAILABLE = True
+except Exception:
+    _WMI_AVAILABLE = False
+
 
 def _pick_temperature_c() -> Optional[float]:
-    """Best-effort temperature extraction across platforms/sensors."""
+    """Best-effort temperature extraction across platforms/sensors.
+
+    Strategy:
+    1. psutil.sensors_temperatures() — works on Linux/macOS.
+    2. WMI MSAcpi_ThermalZoneTemperature — Windows fallback.
+    Returns None when neither source is available (rendered as N/A on device).
+    """
+    # --- psutil path (Linux / macOS) ----------------------------------------
     try:
         sensors = psutil.sensors_temperatures()
+        if sensors:
+            for readings in sensors.values():
+                for reading in readings:
+                    current = getattr(reading, "current", None)
+                    if current is not None:
+                        return float(current)
     except (AttributeError, NotImplementedError, OSError, RuntimeError):
-        return None
+        pass
 
-    if not sensors:
-        return None
+    # --- WMI path (Windows) -------------------------------------------------
+    if _WMI_AVAILABLE:
+        try:
+            # MSAcpi_ThermalZoneTemperature reports in tenths of Kelvin.
+            zones = _wmi.WMI(namespace=r"root\wmi").MSAcpi_ThermalZoneTemperature()
+            if zones:
+                # Average all zones for a single representative value.
+                temps = [(z.CurrentTemperature / 10.0) - 273.15 for z in zones]
+                return round(sum(temps) / len(temps), 1)
+        except Exception:
+            pass
 
-    for readings in sensors.values():
-        for reading in readings:
-            current = getattr(reading, "current", None)
-            if current is not None:
-                return float(current)
     return None
 
 

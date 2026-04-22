@@ -76,6 +76,22 @@ _C_LO   = 88
 _C_COND = 116
 
 
+# ── Tile layout constants (PC Monitor page) ──────────────────────────────────
+_TILE_Y      = 14          # top of tile area (below title divider)
+_TILE_H      = 103         # total tile height (to status divider at 117)
+_TILE_LABEL  = 10          # pixels reserved at bottom for label text
+_TILE_FILL_H = _TILE_H - _TILE_LABEL - 1  # 92px drawable fill area
+_TILE_W      = 54          # tile width (4*54 + 3*4 + 2*6 = 240 exact)
+_TILE_GAP    = 4           # gap between tiles
+_TILE_MARGIN = 6           # left margin (mirrors to right: 6 + 3*58 + 54 = 234... no: 6+54+4+54+4+54+4+54+6=240)
+_TILE_XS     = (
+    _TILE_MARGIN,
+    _TILE_MARGIN + _TILE_W + _TILE_GAP,
+    _TILE_MARGIN + 2 * (_TILE_W + _TILE_GAP),
+    _TILE_MARGIN + 3 * (_TILE_W + _TILE_GAP),
+)
+
+
 class DisplayManager:
     def __init__(self):
         self.ready = False
@@ -87,6 +103,9 @@ class DisplayManager:
         self._last_date_text = ""
         self._last_date_x = 0
         self._syncing_drawn = False
+        # Per-tile value cache: None forces a full redraw on first render
+        self._last_metric_vals = {"cpu_pct": None, "ram_pct": None,
+                                   "disk_pct": None, "temp_c": None}
 
     def init(self):
         if Pin is None or SPI is None:
@@ -174,6 +193,8 @@ class DisplayManager:
                 self._draw_title("Solar", "[4/5]")
                 self._draw_solar(state)
             else:
+                self._last_metric_vals = {"cpu_pct": None, "ram_pct": None,
+                                           "disk_pct": None, "temp_c": None}
                 self._draw_title("PC Monitor", "[5/5]")
                 self._draw_metrics(state, now_ms)
 
@@ -397,60 +418,122 @@ class DisplayManager:
     # ── Page 4 – PC Metrics ───────────────────────────────────────────────────
 
     def _draw_metrics(self, state, now_ms):
-        self._fill_rect(0, 24, board.DISPLAY_W, _Z_DIV2 - 24, board.COL_BG)
+        """Draw PC metrics as 4 filled square tiles with incremental updates.
+
+        Tiles (left→right): CPU | RAM | DSK | TEMP
+        Each tile:  fill rises from bottom proportional to usage %;
+                    value text centred inside; label centred at bottom.
+        Only tiles whose value changed by ≥0.5 are redrawn to prevent flicker.
+        """
+        # ── Status bar is always refreshed (cheap, 8px) ────────────────────
         self._fill_rect(0, _Z_STATUS, board.DISPLAY_W, board.DISPLAY_H - _Z_STATUS, board.COL_BG)
 
         if not state.metrics["valid"]:
+            # On first invalid render: clear tile area and show message
+            self._fill_rect(0, _TILE_Y, board.DISPLAY_W, _TILE_H, board.COL_BG)
+            self._last_metric_vals = {"cpu_pct": None, "ram_pct": None,
+                                       "disk_pct": None, "temp_c": None}
             if not state.wifi_online:
                 msg = "No Network"
             elif state.last_metrics_fetch_ms:
                 msg = "PC service offline"
             else:
                 msg = "Waiting PC data..."
-            self._text(msg, 4, 60, board.COL_STATUS, board.COL_BG)
+            self._text(msg, 4, _TILE_Y + _TILE_H // 2, board.COL_STATUS, board.COL_BG)
+            self._draw_status_bar(state, now_ms, "[5/5]", state.last_metrics_fetch_ms, "pc")
+            return
+
+        m = state.metrics
+        temp_c = m.get("temp_c", None)
+
+        # ── Build per-tile descriptors ──────────────────────────────────────
+        # (key, pct, label, value_str, base_color)
+        if temp_c is None:
+            temp_pct = 0.0
+            temp_val = "N/A"
         else:
-            m = state.metrics
-            self._draw_pct_bar("CPU", m["cpu_pct"], 27, board.COL_METRIC_CPU)
-            self._draw_pct_bar("RAM", m["ram_pct"], 47, board.COL_METRIC_RAM)
-            self._draw_pct_bar("DSK", m["disk_pct"], 67, board.COL_METRIC_DISK)
+            temp_pct = max(0.0, min(100.0, temp_c))  # 0-100°C → 0-100%
+            temp_val = "%.0fC" % temp_c
 
-            temp_c = m.get("temp_c", None)
-            if temp_c is None:
-                temp_label = "Temp: N/A"
-                temp_col = board.COL_STATUS
-            elif temp_c >= 70.0:
-                temp_label = "Temp: %.1fC HOT" % temp_c
-                temp_col = board.COL_OFFLINE
-            elif temp_c >= 55.0:
-                temp_label = "Temp: %.1fC WARM" % temp_c
-                temp_col = board.COL_METRIC_TEMP_WARN
+        tiles = (
+            ("cpu_pct",  float(m["cpu_pct"]),   "CPU", "%d%%" % int(m["cpu_pct"]),  board.COL_METRIC_CPU),
+            ("ram_pct",  float(m["ram_pct"]),   "RAM", "%d%%" % int(m["ram_pct"]),  board.COL_METRIC_RAM),
+            ("disk_pct", float(m["disk_pct"]),  "DSK", "%d%%" % int(m["disk_pct"]), board.COL_METRIC_DISK),
+            ("temp_c",   temp_pct,              "TEMP", temp_val,                   board.COL_METRIC_CPU),
+        )
+
+        for idx, (key, pct, label, val_str, base_col) in enumerate(tiles):
+            cached = self._last_metric_vals.get(key)
+            # Redraw if first render (cached is None) or value changed enough
+            if cached is not None and abs(pct - cached) < 0.5:
+                continue  # no visible change — skip to avoid flicker
+
+            # Pick threshold color
+            if pct >= 80.0:
+                col = board.COL_OFFLINE            # red
+            elif pct >= 60.0:
+                col = board.COL_METRIC_TEMP_WARN   # yellow
             else:
-                temp_label = "Temp: %.1fC" % temp_c
-                temp_col = board.COL_ONLINE
+                col = base_col
 
-            self._text(temp_label, 4, 89, temp_col, board.COL_BG)
-            self._text("Uptime: %s" % self._format_uptime(m.get("uptime_s", 0)), 4, 101, board.COL_COND, board.COL_BG)
+            self._draw_metric_tile(_TILE_XS[idx], pct, label, val_str, col)
+            self._last_metric_vals[key] = pct
 
-            if state.last_metrics_fetch_ms and now_ms:
-                age = ticks_diff(now_ms, state.last_metrics_fetch_ms)
-                if age > state.metrics_stale_ms:
-                    self._text("[stale]", 184, 89, board.COL_STALE, board.COL_BG)
+        uptime_str = self._format_uptime(m.get("uptime_s", 0))
+        self._draw_status_bar(state, now_ms, "[5/5]", state.last_metrics_fetch_ms, "up:" + uptime_str)
 
-        self._draw_status_bar(state, now_ms, "[5/5]", state.last_metrics_fetch_ms, "pc")
+    def _draw_metric_tile(self, x, pct, label, val_str, color):
+        """Draw one square tile at x.
 
-    def _draw_pct_bar(self, label, pct, y, color):
+        Layout (top-down, height=_TILE_H):
+          ┌──────────────┐  ← _TILE_Y
+          │  empty (bg)  │
+          │──────────────│  ← fill start
+          │  filled zone │
+          │  (val_str)   │
+          ├──────────────┤  ← _TILE_Y + _TILE_H - _TILE_LABEL - 1
+          │    label     │  ← 10px label zone
+          └──────────────┘  ← _TILE_Y + _TILE_H
+        """
         pct = max(0.0, min(100.0, float(pct)))
-        self._text(label, 4, y, board.COL_COND, board.COL_BG)
-        bar_x = 34
-        bar_w = 142
-        bar_h = 8
-        fill_w = int((bar_w * pct) / 100.0)
-        self._fill_rect(bar_x, y + 1, bar_w, bar_h, board.COL_BAR_EMPTY)
-        if fill_w > 0:
-            self._fill_rect(bar_x, y + 1, fill_w, bar_h, color)
-        self._hline(bar_x, y + 1, bar_w, board.COL_DIVIDER)
-        self._hline(bar_x, y + bar_h, bar_w, board.COL_DIVIDER)
-        self._text("%3d%%" % int(pct), 184, y, board.COL_STATUS, board.COL_BG)
+        tw = _TILE_W
+        ty = _TILE_Y
+        th = _TILE_H
+        fh_max = _TILE_FILL_H   # 92px
+        fill_h = int((fh_max * pct) / 100.0)
+        empty_h = fh_max - fill_h
+
+        # Full tile background (clears previous state)
+        self._fill_rect(x, ty, tw, th, board.COL_BG)
+
+        # Outer border (1px)
+        self._fill_rect(x, ty, tw, 1, board.COL_DIVIDER)                     # top
+        self._fill_rect(x, ty + th - 1, tw, 1, board.COL_DIVIDER)            # bottom
+        self._fill_rect(x, ty, 1, th, board.COL_DIVIDER)                     # left
+        self._fill_rect(x + tw - 1, ty, 1, th, board.COL_DIVIDER)            # right
+
+        # Empty zone (top of fill area, above the fill)
+        if empty_h > 0:
+            self._fill_rect(x + 1, ty + 1, tw - 2, empty_h, board.COL_BG)
+
+        # Filled zone (bottom of fill area)
+        fill_y = ty + 1 + empty_h
+        if fill_h > 0:
+            self._fill_rect(x + 1, fill_y, tw - 2, fill_h, color)
+
+        # Separator line between fill area and label zone
+        sep_y = ty + fh_max + 1
+        self._hline(x, sep_y, tw, board.COL_DIVIDER)
+
+        # Value text — centred inside fill area (or full drawable area if fill is small)
+        val_x = x + max(0, (tw - len(val_str) * 8) // 2)
+        val_y = ty + max(1, fh_max // 2 - 4)
+        self._text(val_str, val_x, val_y, board.COL_COND, board.COL_BG if fill_h < fh_max // 2 else color)
+
+        # Label — centred at bottom
+        label_x = x + max(0, (tw - len(label) * 8) // 2)
+        label_y = sep_y + 1
+        self._text(label, label_x, label_y, board.COL_STATUS, board.COL_BG)
 
     @staticmethod
     def _format_uptime(total_seconds):
