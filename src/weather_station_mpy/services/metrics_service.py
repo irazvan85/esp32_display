@@ -37,6 +37,8 @@ class MetricsService:
                 "ram_pct": self._pct(payload.get("ram_pct", 0.0)),
                 "disk_pct": self._pct(payload.get("disk_pct", 0.0)),
                 "temp_c": self._opt_float(payload.get("temp_c", None)),
+                "gpu_pct": self._opt_pct(payload.get("gpu_pct", None)),
+                "gpu_temp_c": self._opt_float(payload.get("gpu_temp_c", None)),
                 "uptime_s": int(payload.get("uptime_s", 0)),
                 "ts": int(payload.get("ts", 0)),
                 "fetched_ms": ticks_ms(),
@@ -47,6 +49,17 @@ class MetricsService:
 
     @staticmethod
     def _pct(value):
+        pct = float(value)
+        if pct < 0.0:
+            return 0.0
+        if pct > 100.0:
+            return 100.0
+        return pct
+
+    @staticmethod
+    def _opt_pct(value):
+        if value is None:
+            return None
         pct = float(value)
         if pct < 0.0:
             return 0.0

@@ -104,8 +104,11 @@ class DisplayManager:
         self._last_date_x = 0
         self._syncing_drawn = False
         # Per-tile value cache: None forces a full redraw on first render
-        self._last_metric_vals = {"cpu_pct": None, "ram_pct": None,
-                                   "disk_pct": None, "temp_c": None}
+        self._last_metric_vals = {
+            "cpu_pct": None, "ram_pct": None, "disk_pct": None, "temp_c": None,
+            "gpu_pct": None, "gpu_temp_c": None,
+        }
+        self._metrics_subpage_last = -1  # detects subpage flip to force tile redraw
 
     def init(self):
         if Pin is None or SPI is None:
@@ -193,8 +196,12 @@ class DisplayManager:
                 self._draw_title("Solar", "[4/5]")
                 self._draw_solar(state)
             else:
-                self._last_metric_vals = {"cpu_pct": None, "ram_pct": None,
-                                           "disk_pct": None, "temp_c": None}
+                self._last_metric_vals = {
+                    "cpu_pct": None, "ram_pct": None, "disk_pct": None, "temp_c": None,
+                    "gpu_pct": None, "gpu_temp_c": None,
+                }
+                self._metrics_subpage_last = -1
+                state.metrics_subpage = 0
                 self._draw_title("PC Monitor", "[5/5]")
                 self._draw_metrics(state, now_ms)
 
@@ -431,8 +438,11 @@ class DisplayManager:
         if not state.metrics["valid"]:
             # On first invalid render: clear tile area and show message
             self._fill_rect(0, _TILE_Y, board.DISPLAY_W, _TILE_H, board.COL_BG)
-            self._last_metric_vals = {"cpu_pct": None, "ram_pct": None,
-                                       "disk_pct": None, "temp_c": None}
+            self._last_metric_vals = {
+                "cpu_pct": None, "ram_pct": None, "disk_pct": None, "temp_c": None,
+                "gpu_pct": None, "gpu_temp_c": None,
+            }
+            self._metrics_subpage_last = -1
             if not state.wifi_online:
                 msg = "No Network"
             elif state.last_metrics_fetch_ms:
@@ -462,22 +472,67 @@ class DisplayManager:
             ("temp_c",   temp_pct,              "TEMP", temp_val,                   board.COL_METRIC_CPU),
         )
 
-        for idx, (key, pct, label, val_str, base_col) in enumerate(tiles):
-            cached = self._last_metric_vals.get(key)
-            # Redraw if first render (cached is None) or value changed enough
-            if cached is not None and abs(pct - cached) < 0.5:
-                continue  # no visible change — skip to avoid flicker
+        # ── Detect subpage change → force full tile redraw ──────────────────
+        subpage = getattr(state, "metrics_subpage", 0)
+        if subpage != self._metrics_subpage_last:
+            self._fill_rect(0, _TILE_Y, board.DISPLAY_W, _TILE_H, board.COL_BG)
+            for k in self._last_metric_vals:
+                self._last_metric_vals[k] = None
+            self._metrics_subpage_last = subpage
 
-            # Pick threshold color
-            if pct >= 80.0:
-                col = board.COL_OFFLINE            # red
-            elif pct >= 60.0:
-                col = board.COL_METRIC_TEMP_WARN   # yellow
+        if subpage == 1:
+            # ── View B: GPU% | GPU_T | CPU% | CPU_T ─────────────────────────
+            gpu_pct_val = m.get("gpu_pct")
+            gpu_temp_val = m.get("gpu_temp_c")
+            if gpu_pct_val is None and gpu_temp_val is None:
+                self._fill_rect(0, _TILE_Y, board.DISPLAY_W, _TILE_H, board.COL_BG)
+                self._text("No GPU data", 4, _TILE_Y + _TILE_H // 2, board.COL_STATUS, board.COL_BG)
+                state.metrics_subpage = 0
             else:
-                col = base_col
+                if gpu_pct_val is None:
+                    gpu_pct_draw, gpu_pct_str = 0.0, "N/A"
+                else:
+                    gpu_pct_draw = float(gpu_pct_val)
+                    gpu_pct_str = "%d%%" % int(gpu_pct_val)
+                if gpu_temp_val is None:
+                    gpu_t_draw, gpu_t_str = 0.0, "N/A"
+                else:
+                    gpu_t_draw = max(0.0, min(100.0, float(gpu_temp_val)))
+                    gpu_t_str = "%.0fC" % gpu_temp_val
 
-            self._draw_metric_tile(_TILE_XS[idx], pct, label, val_str, col)
-            self._last_metric_vals[key] = pct
+                active_tiles = (
+                    ("gpu_pct",   gpu_pct_draw,              "GPU%",  gpu_pct_str,              board.COL_METRIC_GPU),
+                    ("gpu_temp_c", gpu_t_draw,               "GPU_T", gpu_t_str,                board.COL_METRIC_GPU),
+                    ("cpu_pct",   float(m["cpu_pct"]),       "CPU",   "%d%%" % int(m["cpu_pct"]), board.COL_METRIC_CPU),
+                    ("temp_c",    temp_pct,                  "CPU_T", temp_val,                 board.COL_METRIC_CPU),
+                )
+                for idx, (key, pct, label, val_str, base_col) in enumerate(active_tiles):
+                    cached = self._last_metric_vals.get(key)
+                    if cached is not None and abs(pct - cached) < 0.5:
+                        continue
+                    col = (board.COL_OFFLINE if pct >= 80.0
+                           else board.COL_METRIC_TEMP_WARN if pct >= 60.0
+                           else base_col)
+                    self._draw_metric_tile(_TILE_XS[idx], pct, label, val_str, col)
+                    self._last_metric_vals[key] = pct
+        else:
+            # ── View A: CPU% | RAM% | DSK% | CPU_T (original layout) ────────
+            for idx, (key, pct, label, val_str, base_col) in enumerate(tiles):
+                cached = self._last_metric_vals.get(key)
+                # Redraw if first render (cached is None) or value changed enough
+                if cached is not None and abs(pct - cached) < 0.5:
+                    continue  # no visible change — skip to avoid flicker
+
+                # Pick threshold color
+                if pct >= 80.0:
+                    col = board.COL_OFFLINE            # red
+                elif pct >= 60.0:
+                    col = board.COL_METRIC_TEMP_WARN   # yellow
+                else:
+                    col = base_col
+
+                self._draw_metric_tile(_TILE_XS[idx], pct, label, val_str, col)
+                self._last_metric_vals[key] = pct
 
         uptime_str = self._format_uptime(m.get("uptime_s", 0))
         self._draw_status_bar(state, now_ms, "[5/5]", state.last_metrics_fetch_ms, "up:" + uptime_str)

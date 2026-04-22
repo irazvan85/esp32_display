@@ -49,9 +49,21 @@ async def button_task(state):
         if prev == 1 and cur == 0:
             if ticks_diff(now, last_press) > board.BTN_DEBOUNCE_MS:
                 last_press = now
-                state.page = (state.page + 1) % board.TOTAL_PAGES
-                state.page_dirty = True
-                print("[BTN] Page -> %d" % state.page)
+                if state.page == board.PAGE_PC_MONITOR:
+                    gpu_available = state.metrics.get("gpu_pct") is not None
+                    if gpu_available and state.metrics_subpage == 0:
+                        state.metrics_subpage = 1
+                        state.metrics_dirty = True
+                        print("[BTN] PC view B (GPU)")
+                    else:
+                        state.metrics_subpage = 0
+                        state.page = (state.page + 1) % board.TOTAL_PAGES
+                        state.page_dirty = True
+                        print("[BTN] Page -> %d" % state.page)
+                else:
+                    state.page = (state.page + 1) % board.TOTAL_PAGES
+                    state.page_dirty = True
+                    print("[BTN] Page -> %d" % state.page)
         prev = cur
         await asyncio.sleep_ms(30)
 

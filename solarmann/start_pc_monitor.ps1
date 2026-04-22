@@ -19,7 +19,8 @@
 param(
     [int]    $Port     = 8765,
     [string] $DiskPath = "C:\",
-    [string] $BindHost = "0.0.0.0"
+    [string] $BindHost = "0.0.0.0",
+    [string] $LhmUrl   = "http://localhost:8085/data.json"
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -63,7 +64,7 @@ foreach ($pkg in $RequiredPackages) {
         & $PythonExe -m pip install $pkg --quiet
         if ($LASTEXITCODE -ne 0) {
             if ($pkg -eq "wmi") {
-                Write-Host "[warn]  Could not install wmi — temperature will show N/A." -ForegroundColor Yellow
+                Write-Host "[warn]  Could not install wmi - temperature will show N/A." -ForegroundColor Yellow
             } else {
                 Write-Host "[ERROR] Failed to install required package: $pkg" -ForegroundColor Red
                 pause; exit 1
@@ -83,15 +84,16 @@ Write-Host "  Disk: $DiskPath" -ForegroundColor Green
 Write-Host "  Press Ctrl+C to stop." -ForegroundColor Green
 Write-Host "=================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "[note] Temperature requires hardware sensor access." -ForegroundColor DarkCyan
-Write-Host "       If it shows N/A, run LibreHardwareMonitor and" -ForegroundColor DarkCyan
-Write-Host "       enable its remote web server on port 8085." -ForegroundColor DarkCyan
+Write-Host "[note] For CPU/GPU temperatures on gaming laptops (e.g. Lenovo Legion):" -ForegroundColor DarkCyan
+Write-Host "       1. Run LibreHardwareMonitor as Administrator" -ForegroundColor DarkCyan
+Write-Host "       2. Enable: Options -> Remote Web Server -> Run (port 8085)" -ForegroundColor DarkCyan
+Write-Host "       LHM URL: $LhmUrl  (pass -LhmUrl '' to disable)" -ForegroundColor DarkCyan
 Write-Host ""
 
 try {
-    & $PythonExe $ApiScript --host $BindHost --port $Port --disk-path $DiskPath
+    & $PythonExe $ApiScript --host $BindHost --port $Port --disk-path $DiskPath --lhm-url $LhmUrl
 } catch {
-    Write-Host "[ERROR] $_" -ForegroundColor Red
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
 }
 
 Write-Host ""

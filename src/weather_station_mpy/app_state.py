@@ -42,12 +42,15 @@ class AppState:
             "last_update_ts": 0,
         }
 
+        self.metrics_subpage = 0  # 0 = View A (CPU/RAM/DSK/TEMP), 1 = View B (GPU)
         self.metrics = {
             "valid": False,
             "cpu_pct": 0.0,
             "ram_pct": 0.0,
             "disk_pct": 0.0,
             "temp_c": None,
+            "gpu_pct": None,
+            "gpu_temp_c": None,
             "uptime_s": 0,
             "ts": 0,
         }
