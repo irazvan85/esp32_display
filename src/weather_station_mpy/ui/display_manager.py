@@ -1,0 +1,736 @@
+"""ST7789 display manager — improved UI.
+
+Layout (landscape, 240×135 px):
+
+  Page 0 – Current conditions
+  ┌──────────────────────────────────────────┐
+  │ HH:MM:SS  (×2 scale, 240 px wide)  y=0  │
+  │ Wed  22 Apr 2025  (centered)       y=17  │
+  ├──────────────────────────────────────────┤ y=26
+  │ [icon 18×18] temp (big)  feels/hum y=28  │
+  │              condition             y=46  │
+  ├──────────────────────────────────────────┤ y=118
+    │ ● wifi  age label            [1/5] y=120 │
+  └──────────────────────────────────────────┘
+
+  Page 1 – Tomorrow
+  Page 2 – 5-Day forecast (5 columns)
+  Page 3 – Solar
+    Page 4 – PC Metrics
+"""
+
+import board
+
+from compat import ticks_diff
+
+try:
+    _machine = __import__("machine")
+    Pin = _machine.Pin
+    SPI = _machine.SPI
+except ImportError:
+    Pin = None
+    SPI = None
+
+try:
+    st7789 = __import__("st7789")
+except ImportError:
+    try:
+        st7789 = __import__("st7789py")
+    except ImportError:
+        st7789 = None
+
+try:
+    font_small = __import__("vga1_8x8")
+except ImportError:
+    font_small = None
+
+
+_DAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+_MONTHS = (
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+)
+
+# ── UI zones ─────────────────────────────────────────────────────────────────
+_Z_CLOCK  = 0    # 3× scaled clock (24 px tall)
+_Z_DATE   = 26   # date line (8 px)
+_Z_DIV1   = 35   # divider below date
+_Z_WX     = 37   # weather block start
+_Z_DIV2   = 118  # divider above status bar
+_Z_STATUS = 120  # status bar
+
+# ── Scaled char sizes ─────────────────────────────────────────────────────────
+_CHAR_W2 = 16
+_CHAR_H2 = 16
+_CHAR_W3 = 24
+_CHAR_H3 = 24
+
+# ── Icon sizes ────────────────────────────────────────────────────────────────
+_ICON_W = 18
+
+# ── 5-day column x positions ─────────────────────────────────────────────────
+_C_DAY  =  2
+_C_ICON = 32
+_C_HI   = 56
+_C_LO   = 88
+_C_COND = 116
+
+
+class DisplayManager:
+    def __init__(self):
+        self.ready = False
+        self._tft = None
+        self._last_page = -1
+        self._last_second = -1
+        self._last_clock_text = ""
+        self._last_clock_x = 0
+        self._last_date_text = ""
+        self._last_date_x = 0
+        self._syncing_drawn = False
+
+    def init(self):
+        if Pin is None or SPI is None:
+            print("[DISP] machine module not found; running in headless mode")
+            return
+
+        Pin(board.LCD_BLK, Pin.OUT).value(1)
+
+        if st7789 is None:
+            print("[DISP] st7789 module not found; running in headless mode")
+            return
+
+        spi = SPI(
+            board.SPI_BUS,
+            baudrate=board.SPI_BAUDRATE,
+            polarity=0,
+            phase=0,
+            sck=Pin(board.LCD_SCLK),
+            mosi=Pin(board.LCD_MOSI),
+        )
+
+        self._tft = st7789.ST7789(
+            spi,
+            board.DISPLAY_NATIVE_W,
+            board.DISPLAY_NATIVE_H,
+            reset=Pin(board.LCD_RST, Pin.OUT),
+            cs=Pin(board.LCD_CS, Pin.OUT),
+            dc=Pin(board.LCD_DC, Pin.OUT),
+            rotation=board.DISPLAY_ROTATION,
+        )
+        self._tft.init()
+        tft = self._tft
+        if tft is None:
+            return
+        tft.fill(board.COL_BG)
+        self.ready = True
+        print("[DISP] ST7789 initialized (improved UI)")
+
+    # ── Public helpers ────────────────────────────────────────────────────────
+
+    def draw_boot(self, text):
+        if not self.ready:
+            print("[DISP] %s" % text)
+            return
+        tft = self._tft
+        if tft is None:
+            return
+        tft.fill(board.COL_BG)
+        self._hline(0, _Z_DIV1, board.DISPLAY_W, board.COL_DIVIDER)
+        self._text(text, 4, _Z_STATUS, board.COL_COND, board.COL_BG)
+
+    def draw_config_error(self, text):
+        if not self.ready:
+            print("[CFG] %s" % text)
+            return
+        tft = self._tft
+        if tft is None:
+            return
+        tft.fill(board.COL_BG)
+        self._text("Config required", 4, 20, board.COL_OFFLINE, board.COL_BG)
+        self._text("Edit config.json", 4, 40, board.COL_COND, board.COL_BG)
+        self._text(text, 4, 60, board.COL_STATUS, board.COL_BG)
+
+    def render(self, state, now_local, stale_ms, now_ms):
+        if self._last_page != state.page or state.page_dirty:
+            self._last_page = state.page
+            state.page_dirty = False
+            self._fill(board.COL_BG)
+            if state.page == 0:
+                state.weather_dirty = True
+                state.status_dirty = True
+                self._draw_page0_static()
+                self._last_second = -1
+                self._last_clock_text = ""
+                self._last_date_text = ""
+                self._syncing_drawn = False
+            elif state.page == 1:
+                self._draw_title("Tomorrow", "[2/5]")
+                self._draw_tomorrow(state)
+            elif state.page == 2:
+                self._draw_title("5-Day Forecast", "[3/5]")
+                self._draw_5day_header()
+                self._draw_5day(state)
+            elif state.page == 3:
+                self._draw_title("Solar", "[4/5]")
+                self._draw_solar(state)
+            else:
+                self._draw_title("PC Monitor", "[5/5]")
+                self._draw_metrics(state, now_ms)
+
+        if state.page == 0:
+            self._draw_page0_dynamic(state, now_local, stale_ms, now_ms)
+        elif state.page == 1 and state.forecast_dirty:
+            state.forecast_dirty = False
+            self._draw_tomorrow(state)
+        elif state.page == 2 and state.forecast_dirty:
+            state.forecast_dirty = False
+            self._draw_5day(state)
+        elif state.page == 3 and state.solar_dirty:
+            state.solar_dirty = False
+            self._draw_solar(state)
+        elif state.page == 4 and (state.metrics_dirty or state.status_dirty):
+            state.metrics_dirty = False
+            state.status_dirty = False
+            self._draw_metrics(state, now_ms)
+
+    # ── Page 0 ────────────────────────────────────────────────────────────────
+
+    def _draw_page0_static(self):
+        self._hline(0, _Z_DIV1, board.DISPLAY_W, board.COL_DIVIDER)
+        self._hline(0, _Z_DIV2, board.DISPLAY_W, board.COL_DIVIDER)
+
+    def _draw_page0_dynamic(self, state, now_local, stale_ms, now_ms):
+        # ── Clock + date (updates every second) ──
+        if now_local is not None:
+            sec = now_local[5]
+            if sec != self._last_second:
+                self._last_second = sec
+                clock_text = "%02d:%02d:%02d" % (now_local[3], now_local[4], now_local[5])
+                cx = max(0, (board.DISPLAY_W - len(clock_text) * _CHAR_W3) // 2)
+                self._draw_clock_delta(clock_text, cx)
+                day = _DAYS[now_local[6]] if 0 <= now_local[6] < 7 else "?"
+                month_idx = now_local[1] - 1
+                month = _MONTHS[month_idx] if 0 <= month_idx < 12 else "?"
+                date_text = "%s  %02d %s %04d" % (day, now_local[2], month, now_local[0])
+                date_x = max(0, (board.DISPLAY_W - len(date_text) * 8) // 2)
+                self._draw_date_delta(date_text, date_x)
+                self._syncing_drawn = False
+        elif not state.time_synced:
+            if not self._syncing_drawn:
+                self._fill_rect(0, _Z_CLOCK, board.DISPLAY_W, _Z_DIV1, board.COL_BG)
+                self._text("Syncing...", 4, _Z_CLOCK + 4, board.COL_STATUS, board.COL_BG)
+                self._syncing_drawn = True
+                self._last_clock_text = ""
+                self._last_date_text = ""
+
+        # ── Weather block ──
+        if state.weather_dirty or state.status_dirty:
+            state.weather_dirty = False
+            state.status_dirty = False
+            self._fill_rect(0, _Z_WX, board.DISPLAY_W, _Z_DIV2 - _Z_WX, board.COL_BG)
+            self._fill_rect(0, _Z_STATUS, board.DISPLAY_W, board.DISPLAY_H - _Z_STATUS, board.COL_BG)
+
+            if state.weather["valid"]:
+                w = state.weather
+                wx_id = w.get("condition_id", 800)
+                self._draw_weather_icon(2, _Z_WX + 2, wx_id, size=_ICON_W)
+
+                # Temperature — 2× scaled
+                temp_str = "%+.1fC" % w["temp_c"]
+                tx = _ICON_W + 6
+                self._text2x(temp_str, tx, _Z_WX, board.COL_TEMP, board.COL_BG)
+
+                # Feels + humidity right of temp or below
+                fh_str = "F:%.1f H:%d%%" % (w["feels_like_c"], w["humidity"])
+                fh_x = tx + len(temp_str) * _CHAR_W2 + 6
+                if fh_x + len(fh_str) * 8 <= board.DISPLAY_W:
+                    self._text(fh_str, fh_x, _Z_WX + 4, board.COL_FEELS, board.COL_BG)
+                else:
+                    self._text(fh_str, tx, _Z_WX + _CHAR_H2 + 2, board.COL_FEELS, board.COL_BG)
+
+                # Condition
+                cond = w["condition"]
+                max_chars = (board.DISPLAY_W - 4) // 8
+                if len(cond) > max_chars:
+                    cond = cond[:max_chars - 1]
+                self._text(cond, 4, _Z_WX + _CHAR_H2 + 12, board.COL_COND, board.COL_BG)
+
+                # Wind
+                wind = w.get("wind_ms", None)
+                if wind is not None:
+                    self._text("Wind:%.1fm/s" % wind, 4, _Z_WX + _CHAR_H2 + 22, board.COL_STATUS, board.COL_BG)
+
+                # Stale badge
+                if state.last_weather_fetch_ms:
+                    age = ticks_diff(now_ms, state.last_weather_fetch_ms)
+                    if age > stale_ms:
+                        self._text("[stale]", 184, _Z_WX, board.COL_STALE, board.COL_BG)
+            else:
+                msg = ("No Network" if not state.wifi_online
+                       else ("Syncing..." if not state.time_synced
+                             else "Fetching wx..."))
+                self._text(msg, 4, _Z_WX + 14, board.COL_STATUS, board.COL_BG)
+
+            self._draw_status_bar(state, now_ms, "[1/5]", state.last_weather_fetch_ms, "wx")
+
+    def _draw_clock_delta(self, new_text, new_x):
+        old_text = self._last_clock_text
+        old_x = self._last_clock_x
+
+        if (not old_text) or (len(old_text) != len(new_text)) or (old_x != new_x):
+            if old_text:
+                self._fill_rect(old_x, _Z_CLOCK, len(old_text) * _CHAR_W3, _CHAR_H3, board.COL_BG)
+            self._fill_rect(new_x, _Z_CLOCK, len(new_text) * _CHAR_W3, _CHAR_H3, board.COL_BG)
+            self._text3x(new_text, new_x, _Z_CLOCK, board.COL_CLOCK, board.COL_BG)
+        else:
+            for idx, ch in enumerate(new_text):
+                if idx < len(old_text) and ch == old_text[idx]:
+                    continue
+                x = new_x + idx * _CHAR_W3
+                self._fill_rect(x, _Z_CLOCK, _CHAR_W3, _CHAR_H3, board.COL_BG)
+                self._text3x(ch, x, _Z_CLOCK, board.COL_CLOCK, board.COL_BG)
+
+        self._last_clock_text = new_text
+        self._last_clock_x = new_x
+
+    def _draw_date_delta(self, new_text, new_x):
+        old_text = self._last_date_text
+        old_x = self._last_date_x
+        if new_text == old_text and new_x == old_x:
+            return
+
+        if old_text:
+            self._fill_rect(old_x, _Z_DATE, len(old_text) * 8, 8, board.COL_BG)
+
+        self._fill_rect(new_x, _Z_DATE, len(new_text) * 8, 8, board.COL_BG)
+        self._text(new_text, new_x, _Z_DATE, board.COL_DATE, board.COL_BG)
+        self._last_date_text = new_text
+        self._last_date_x = new_x
+
+    # ── Page 1 – Tomorrow ─────────────────────────────────────────────────────
+
+    def _draw_tomorrow(self, state):
+        self._fill_rect(0, 24, board.DISPLAY_W, _Z_DIV2 - 24, board.COL_BG)
+        self._fill_rect(0, _Z_STATUS, board.DISPLAY_W, board.DISPLAY_H - _Z_STATUS, board.COL_BG)
+
+        if len(state.forecast) < 2:
+            self._text("Forecast pending", 4, 60, board.COL_STATUS, board.COL_BG)
+        else:
+            fc = state.forecast[1]
+            wx_id = fc.get("condition_id", 800)
+            date_raw = fc["date"]
+            try:
+                m_idx = int(date_raw[5:7]) - 1
+                m_str = _MONTHS[m_idx] if 0 <= m_idx < 12 else "?"
+                date_fmt = "%s  %s %s" % (fc["day"], date_raw[8:10], m_str)
+            except (ValueError, IndexError):
+                date_fmt = "%s  %s" % (fc["day"], date_raw)
+            self._text(date_fmt, 4, 26, board.COL_DATE, board.COL_BG)
+            self._draw_weather_icon(4, 40, wx_id, size=24)
+            self._text2x("Hi:%+.0fC" % fc["temp_max"], 34, 38, board.COL_HI, board.COL_BG)
+            self._text2x("Lo:%+.0fC" % fc["temp_min"], 34, 38 + _CHAR_H2 + 2, board.COL_LO, board.COL_BG)
+            self._text(fc["condition"], 4, 80, board.COL_COND, board.COL_BG)
+            self._text("Humidity: %d%%" % fc["humidity"], 4, 92, board.COL_FEELS, board.COL_BG)
+
+        self._draw_status_bar(state, 0, "[2/5]")
+
+    # ── Page 2 – 5-Day ───────────────────────────────────────────────────────
+
+    def _draw_5day_header(self):
+        self._text("Day",  _C_DAY,  14, board.COL_DIVIDER, board.COL_BG)
+        self._text("Hi",   _C_HI,   14, board.COL_DIVIDER, board.COL_BG)
+        self._text("Lo",   _C_LO,   14, board.COL_DIVIDER, board.COL_BG)
+        self._text("Cond", _C_COND, 14, board.COL_DIVIDER, board.COL_BG)
+        self._hline(0, 23, board.DISPLAY_W, board.COL_DIVIDER)
+
+    def _draw_5day(self, state):
+        self._fill_rect(0, 24, board.DISPLAY_W, _Z_DIV2 - 24, board.COL_BG)
+        self._fill_rect(0, _Z_STATUS, board.DISPLAY_W, board.DISPLAY_H - _Z_STATUS, board.COL_BG)
+
+        if not state.forecast:
+            self._text("Forecast pending", 4, 60, board.COL_STATUS, board.COL_BG)
+        else:
+            row_h = 18
+            for idx, fc in enumerate(state.forecast[0:5]):
+                y = 25 + idx * row_h
+                wx_id = fc.get("condition_id", 800)
+                self._text(fc["day"][:3], _C_DAY, y, board.COL_DATE, board.COL_BG)
+                self._draw_weather_icon(_C_ICON, y - 1, wx_id, size=8)
+                self._text("%+.0f" % fc["temp_max"], _C_HI, y, board.COL_HI, board.COL_BG)
+                self._text("%+.0f" % fc["temp_min"], _C_LO, y, board.COL_LO, board.COL_BG)
+                self._text(fc["condition"][:10], _C_COND, y, board.COL_COND, board.COL_BG)
+                if idx < 4:
+                    self._hline(0, y + row_h - 2, board.DISPLAY_W, board.COL_DIVIDER)
+
+        self._draw_status_bar(state, 0, "[3/5]")
+
+    # ── Page 3 – Solar ────────────────────────────────────────────────────────
+
+    def _draw_solar(self, state):
+        self._fill_rect(0, 24, board.DISPLAY_W, _Z_DIV2 - 24, board.COL_BG)
+        self._fill_rect(0, _Z_STATUS, board.DISPLAY_W, board.DISPLAY_H - _Z_STATUS, board.COL_BG)
+
+        if not state.solar["valid"]:
+            self._text("Solar pending", 4, 60, board.COL_STATUS, board.COL_BG)
+        else:
+            s = state.solar
+            gen_kw  = s["generation_w"] / 1000.0
+            grid_kw = s["grid_w"] / 1000.0
+            bat_pct = s["battery_soc"]
+
+            self._text("Generation:", 4, 30, board.COL_STATUS, board.COL_BG)
+            self._text2x("%.2fkW" % gen_kw, 4, 40, board.COL_SOLAR_GEN, board.COL_BG)
+            self._text("Grid: %.2fkW" % grid_kw, 4, 62, board.COL_SOLAR_GRID, board.COL_BG)
+            self._text("Battery: %.0f%%" % bat_pct, 4, 76, board.COL_SOLAR_BAT, board.COL_BG)
+
+            # Battery bar
+            bar_x, bar_y, bar_w, bar_h = 4, 90, board.DISPLAY_W - 8, 10
+            filled = max(0, int(bar_w * bat_pct / 100))
+            self._fill_rect(bar_x, bar_y, bar_w, bar_h, board.COL_BAR_EMPTY)
+            if filled > 0:
+                self._fill_rect(bar_x, bar_y, filled, bar_h, board.COL_SOLAR_BAT)
+            self._hline(bar_x, bar_y, bar_w, board.COL_STATUS)
+            self._hline(bar_x, bar_y + bar_h - 1, bar_w, board.COL_STATUS)
+
+        self._draw_status_bar(state, 0, "[4/5]")
+
+    # ── Page 4 – PC Metrics ───────────────────────────────────────────────────
+
+    def _draw_metrics(self, state, now_ms):
+        self._fill_rect(0, 24, board.DISPLAY_W, _Z_DIV2 - 24, board.COL_BG)
+        self._fill_rect(0, _Z_STATUS, board.DISPLAY_W, board.DISPLAY_H - _Z_STATUS, board.COL_BG)
+
+        if not state.metrics["valid"]:
+            if not state.wifi_online:
+                msg = "No Network"
+            elif state.last_metrics_fetch_ms:
+                msg = "PC service offline"
+            else:
+                msg = "Waiting PC data..."
+            self._text(msg, 4, 60, board.COL_STATUS, board.COL_BG)
+        else:
+            m = state.metrics
+            self._draw_pct_bar("CPU", m["cpu_pct"], 27, board.COL_METRIC_CPU)
+            self._draw_pct_bar("RAM", m["ram_pct"], 47, board.COL_METRIC_RAM)
+            self._draw_pct_bar("DSK", m["disk_pct"], 67, board.COL_METRIC_DISK)
+
+            temp_c = m.get("temp_c", None)
+            if temp_c is None:
+                temp_label = "Temp: N/A"
+                temp_col = board.COL_STATUS
+            elif temp_c >= 70.0:
+                temp_label = "Temp: %.1fC HOT" % temp_c
+                temp_col = board.COL_OFFLINE
+            elif temp_c >= 55.0:
+                temp_label = "Temp: %.1fC WARM" % temp_c
+                temp_col = board.COL_METRIC_TEMP_WARN
+            else:
+                temp_label = "Temp: %.1fC" % temp_c
+                temp_col = board.COL_ONLINE
+
+            self._text(temp_label, 4, 89, temp_col, board.COL_BG)
+            self._text("Uptime: %s" % self._format_uptime(m.get("uptime_s", 0)), 4, 101, board.COL_COND, board.COL_BG)
+
+            if state.last_metrics_fetch_ms and now_ms:
+                age = ticks_diff(now_ms, state.last_metrics_fetch_ms)
+                if age > state.metrics_stale_ms:
+                    self._text("[stale]", 184, 89, board.COL_STALE, board.COL_BG)
+
+        self._draw_status_bar(state, now_ms, "[5/5]", state.last_metrics_fetch_ms, "pc")
+
+    def _draw_pct_bar(self, label, pct, y, color):
+        pct = max(0.0, min(100.0, float(pct)))
+        self._text(label, 4, y, board.COL_COND, board.COL_BG)
+        bar_x = 34
+        bar_w = 142
+        bar_h = 8
+        fill_w = int((bar_w * pct) / 100.0)
+        self._fill_rect(bar_x, y + 1, bar_w, bar_h, board.COL_BAR_EMPTY)
+        if fill_w > 0:
+            self._fill_rect(bar_x, y + 1, fill_w, bar_h, color)
+        self._hline(bar_x, y + 1, bar_w, board.COL_DIVIDER)
+        self._hline(bar_x, y + bar_h, bar_w, board.COL_DIVIDER)
+        self._text("%3d%%" % int(pct), 184, y, board.COL_STATUS, board.COL_BG)
+
+    @staticmethod
+    def _format_uptime(total_seconds):
+        total_seconds = int(total_seconds)
+        if total_seconds < 0:
+            total_seconds = 0
+        days = total_seconds // 86_400
+        hours = (total_seconds % 86_400) // 3_600
+        minutes = (total_seconds % 3_600) // 60
+        if days > 0:
+            return "%dd %02dh" % (days, hours)
+        return "%02dh %02dm" % (hours, minutes)
+
+    # ── Shared widgets ────────────────────────────────────────────────────────
+
+    def _draw_status_bar(self, state, now_ms, page_label, last_fetch_ms=0, age_prefix="wx"):
+        dot_col = board.COL_ONLINE if state.wifi_online else board.COL_OFFLINE
+        self._fill_circle(5, _Z_STATUS + 4, 3, dot_col)
+
+        if now_ms and last_fetch_ms:
+            age_s = ticks_diff(now_ms, last_fetch_ms) // 1000
+            age_label = ("%s %ds" % (age_prefix, age_s) if age_s < 60 else "%s %dm" % (age_prefix, age_s // 60))
+        else:
+            if not state.wifi_online:
+                age_label = "offline"
+            elif age_prefix == "pc":
+                age_label = "no pc"
+            else:
+                age_label = "no wx"
+
+        self._text(age_label, 12, _Z_STATUS, board.COL_STATUS, board.COL_BG)
+        self._text(page_label,
+                   board.DISPLAY_W - len(page_label) * 8 - 2, _Z_STATUS,
+                   board.COL_STATUS, board.COL_BG)
+
+    def _draw_title(self, title, page_label):
+        self._fill_rect(0, 0, board.DISPLAY_W, 23, board.COL_BG)
+        self._text(title, 4, 3, board.COL_TITLE, board.COL_BG)
+        self._text(page_label,
+                   board.DISPLAY_W - len(page_label) * 8 - 2, 3,
+                   board.COL_STATUS, board.COL_BG)
+        self._hline(0, 12, board.DISPLAY_W, board.COL_DIVIDER)
+        self._hline(0, _Z_DIV2, board.DISPLAY_W, board.COL_DIVIDER)
+
+    # ── Weather icon ──────────────────────────────────────────────────────────
+    # OWM condition id groupings:
+    #   2xx=thunder  3xx=drizzle  5xx=rain  6xx=snow  7xx=mist  800=clear  80x=clouds
+
+    def _draw_weather_icon(self, x, y, wx_id, size=_ICON_W):
+        tft = self._tft
+        if tft is None or not self.ready:
+            return
+
+        s = size
+        cx = x + s // 2
+        cy = y + s // 2
+        r = max(2, s // 4)
+
+        if 200 <= wx_id < 300:
+            # Thunder
+            self._icon_cloud(x, y, s, board.COL_ICON_CLOUD)
+            bx = cx
+            by = y + s // 2
+            tft.draw_line(bx + 2, by, bx - 1, by + s // 4, board.COL_ICON_THUNDER)
+            tft.draw_line(bx - 1, by + s // 4, bx + 1, by + s // 4, board.COL_ICON_THUNDER)
+            tft.draw_line(bx + 1, by + s // 4, bx - 2, by + s // 2, board.COL_ICON_THUNDER)
+
+        elif 300 <= wx_id < 600:
+            # Drizzle or rain
+            self._icon_cloud(x, y, s, board.COL_ICON_CLOUD)
+            drop_y = y + s * 2 // 3
+            step = max(2, s // 3)
+            for dx in range(0, s, step):
+                tft.draw_line(x + dx, drop_y, x + dx - 1, drop_y + max(2, s // 4), board.COL_ICON_RAIN)
+
+        elif 600 <= wx_id < 700:
+            # Snow
+            self._icon_cloud(x, y, s, board.COL_ICON_CLOUD)
+            dot_y = y + s * 2 // 3
+            step = max(2, s // 3)
+            for dx in range(0, s, step):
+                tft.pixel(x + dx, dot_y, board.COL_ICON_SNOW)
+                if dot_y + s // 5 < board.DISPLAY_H:
+                    tft.pixel(x + dx, dot_y + s // 5, board.COL_ICON_SNOW)
+
+        elif 700 <= wx_id < 800:
+            # Mist
+            col = board.COL_ICON_MIST
+            for i in range(3):
+                ly = y + s // 5 + i * (s // 4)
+                lx0 = x + (i % 2) * (s // 6)
+                self._hline(lx0, ly, s - (i % 2) * (s // 6), col)
+
+        elif wx_id == 800:
+            # Clear sun
+            tft.fill_circle(cx, cy, r, board.COL_ICON_SUN)
+            ray_r = r + 2
+            ray_len = max(2, s // 6)
+            for ax, ay in ((1, 0), (0, 1), (-1, 0), (0, -1),
+                           (1, 1), (-1, 1), (1, -1), (-1, -1)):
+                norm = 1 if ax == 0 or ay == 0 else 2
+                rx0 = cx + ax * ray_r // norm
+                ry0 = cy + ay * ray_r // norm
+                rx1 = cx + ax * (ray_r + ray_len) // norm
+                ry1 = cy + ay * (ray_r + ray_len) // norm
+                tft.draw_line(rx0, ry0, rx1, ry1, board.COL_ICON_SUN)
+
+        else:
+            # Clouds (801-804)
+            self._icon_cloud(x, y, s, board.COL_ICON_CLOUD)
+            if wx_id == 801:
+                tft.fill_circle(x + s - r, y + r, max(1, r - 1), board.COL_ICON_SUN)
+
+    def _icon_cloud(self, x, y, size, color):
+        tft = self._tft
+        if tft is None:
+            return
+        s = size
+        base_y = y + s // 2
+        tft.fill_rect(x, base_y, s, s // 2, color)
+        r1 = s // 4
+        tft.fill_circle(x + r1, base_y, r1, color)
+        tft.fill_circle(x + s // 2, base_y - s // 8, r1 + 1, color)
+        tft.fill_circle(x + s - r1, base_y, r1, color)
+
+    # ── 2× scaled text ────────────────────────────────────────────────────────
+
+    def _text2x(self, text, x, y, color, bg):
+        """Render text at 2× scale (16×16 px per char) using built-in framebuf font."""
+        if not self.ready:
+            return
+        try:
+            import framebuf  # type: ignore[import]
+        except ImportError:
+            self._text(text, x, y, color, bg)
+            return
+
+        tft = self._tft
+        if tft is None:
+            return
+
+        text = str(text)
+        n = len(text)
+        if n == 0:
+            return
+
+        src_w = n * 8
+        src_h = 8
+        bpr = (src_w + 7) // 8
+        buf = bytearray(bpr * src_h)
+        fb = framebuf.FrameBuffer(buf, src_w, src_h, framebuf.MONO_HLSB)
+        fb.fill(0)
+        fb.text(text, 0, 0, 1)
+
+        dst_w = n * _CHAR_W2
+        dst_h = _CHAR_H2
+
+        if x >= board.DISPLAY_W or y >= board.DISPLAY_H:
+            return
+
+        draw_w = min(dst_w, board.DISPLAY_W - x)
+        draw_h = min(dst_h, board.DISPLAY_H - y)
+        if draw_w <= 0 or draw_h <= 0:
+            return
+
+        fg_hi = (color >> 8) & 0xFF
+        fg_lo = color & 0xFF
+        bg_hi = (bg >> 8) & 0xFF
+        bg_lo = bg & 0xFF
+
+        tft._set_window(x, y, x + draw_w - 1, y + draw_h - 1)
+        pixels = bytearray(draw_w * draw_h * 2)
+        pi = 0
+        for dr in range(draw_h):
+            src_row = dr // 2
+            for dc in range(draw_w):
+                src_col = dc // 2
+                bit = (buf[src_row * bpr + src_col // 8] >> (7 - src_col % 8)) & 1 if src_col < src_w else 0
+                if bit:
+                    pixels[pi] = fg_hi
+                    pixels[pi + 1] = fg_lo
+                else:
+                    pixels[pi] = bg_hi
+                    pixels[pi + 1] = bg_lo
+                pi += 2
+        tft._dc(1)
+        tft._cs(0)
+        tft.spi.write(pixels)
+        tft._cs(1)
+
+    def _text3x(self, text, x, y, color, bg):
+        """Render text at 3× scale (24×24 px per char) using built-in framebuf font."""
+        if not self.ready:
+            return
+        try:
+            import framebuf  # type: ignore[import]
+        except ImportError:
+            self._text(text, x, y, color, bg)
+            return
+        tft = self._tft
+        if tft is None:
+            return
+        text = str(text)
+        n = len(text)
+        if n == 0:
+            return
+        src_w = n * 8
+        src_h = 8
+        bpr = (src_w + 7) // 8
+        buf = bytearray(bpr * src_h)
+        fb = framebuf.FrameBuffer(buf, src_w, src_h, framebuf.MONO_HLSB)
+        fb.fill(0)
+        fb.text(text, 0, 0, 1)
+        dst_w = n * _CHAR_W3
+        dst_h = _CHAR_H3
+        if x >= board.DISPLAY_W or y >= board.DISPLAY_H:
+            return
+        draw_w = min(dst_w, board.DISPLAY_W - x)
+        draw_h = min(dst_h, board.DISPLAY_H - y)
+        if draw_w <= 0 or draw_h <= 0:
+            return
+        fg_hi = (color >> 8) & 0xFF
+        fg_lo = color & 0xFF
+        bg_hi = (bg >> 8) & 0xFF
+        bg_lo = bg & 0xFF
+        tft._set_window(x, y, x + draw_w - 1, y + draw_h - 1)
+        pixels = bytearray(draw_w * draw_h * 2)
+        pi = 0
+        for dr in range(draw_h):
+            src_row = dr // 3
+            for dc in range(draw_w):
+                src_col = dc // 3
+                bit = (buf[src_row * bpr + src_col // 8] >> (7 - src_col % 8)) & 1 if src_col < src_w else 0
+                if bit:
+                    pixels[pi] = fg_hi
+                    pixels[pi + 1] = fg_lo
+                else:
+                    pixels[pi] = bg_hi
+                    pixels[pi + 1] = bg_lo
+                pi += 2
+        tft._dc(1)
+        tft._cs(0)
+        tft.spi.write(pixels)
+        tft._cs(1)
+
+    # ── Low-level helpers ─────────────────────────────────────────────────────
+
+    def _text(self, text, x, y, color, bg):
+        if not self.ready:
+            return
+        tft = self._tft
+        if tft is None or not hasattr(tft, "text"):
+            return
+        tft.text(font_small, str(text), x, y, color, bg)
+
+    def _hline(self, x, y, length, color):
+        if not self.ready:
+            return
+        tft = self._tft
+        if tft is not None and hasattr(tft, "hline"):
+            tft.hline(x, y, length, color)
+
+    def _fill_rect(self, x, y, w, h, color):
+        if not self.ready:
+            return
+        tft = self._tft
+        if tft is not None and hasattr(tft, "fill_rect"):
+            tft.fill_rect(x, y, w, h, color)
+
+    def _fill_circle(self, cx, cy, r, color):
+        if not self.ready:
+            return
+        tft = self._tft
+        if tft is not None and hasattr(tft, "fill_circle"):
+            tft.fill_circle(cx, cy, r, color)
+
+    def _fill(self, color):
+        if not self.ready:
+            return
+        tft = self._tft
+        if tft is not None and hasattr(tft, "fill"):
+            tft.fill(color)
+

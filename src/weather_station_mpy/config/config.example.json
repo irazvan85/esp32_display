@@ -1,0 +1,40 @@
+{
+  "wifi": {
+    "ssid": "your_wifi_ssid",
+    "password": "your_wifi_password",
+    "connect_timeout_ms": 10000,
+    "check_interval_ms": 30000
+  },
+  "weather": {
+    "enabled": true,
+    "api_key": "your_openweathermap_api_key",
+    "city": "Bucharest",
+    "country": "RO",
+    "refresh_ms": 600000,
+    "stale_ms": 1800000
+  },
+  "time": {
+    "ntp_server": "pool.ntp.org",
+    "clock_refresh_ms": 1000,
+    "tz_mode": "romania_eet_eest"
+  },
+  "solar": {
+    "enabled": false,
+    "app_id": "your_app_id",
+    "app_secret": "your_app_secret",
+    "email": "your@email.com",
+    "pass_sha256": "sha256_hex_of_your_password",
+    "station_id": 0,
+    "refresh_ms": 300000
+  },
+  "metrics": {
+    "enabled": false,
+    "pc_url": "http://192.168.1.100:8765/api/system/metrics",
+    "refresh_ms": 10000,
+    "stale_ms": 120000,
+    "timeout_ms": 3000
+  },
+  "display": {
+    "backlight_on": true
+  }
+}

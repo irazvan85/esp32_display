@@ -1,0 +1,134 @@
+# Retro Weather Clock (MicroPython)
+
+Initial implementation for migrating the existing Arduino weather station to MicroPython on the ideaspark ESP32 1.14-inch ST7789 board.
+
+## What is implemented now
+
+- Fixed board pin mapping for ideaspark ESP32 + ST7789.
+- `uasyncio` app loop with separate tasks for:
+  - button page switching
+  - periodic Wi-Fi checks/reconnect
+  - weather polling
+  - solar polling
+  - render loop
+  - periodic heap logging
+- First-boot config flow:
+  - if `config.json` is missing, it is created from defaults
+  - app halts with on-screen and serial instructions until placeholders are filled
+- ST7789 display bootstrap and basic page rendering:
+  - page 0: clock/date/weather summary/status
+  - page 1: tomorrow summary
+  - page 2: 5-day rows
+  - page 3: solar summary
+  - page 4: PC metrics (CPU/RAM/disk/temp/uptime)
+
+## Current migration status
+
+This is phase 1/2 implementation. It establishes architecture and hardware/runtime foundation. Visual parity with Arduino (`weather_station.ino`) and full icon/layout fidelity are not complete yet.
+
+## Project layout
+
+- `boot.py`: minimal boot hook
+- `main.py`: app startup + task orchestration
+- `board.py`: pin map, display constants, palette
+- `app_state.py`: shared mutable runtime state
+- `config/`: defaults, validation, and example config
+- `services/`: Wi-Fi, time, weather API, SolarMan API, PC metrics API client
+- `ui/display_manager.py`: display init + page rendering
+
+## Required MicroPython modules
+
+Install or bundle these modules in your firmware filesystem:
+
+- `uasyncio`
+- `urequests`
+- `ntptime`
+- `st7789`
+- font modules used by `st7789` text rendering:
+  - `vga1_16x32`
+  - `vga1_8x16`
+  - `vga1_8x8`
+
+## Deploy to board (Windows / COM13)
+
+1. Install tooling on your PC:
+
+```powershell
+pip install mpremote
+```
+
+1. Download an ESP32_GENERIC MicroPython firmware `.bin` from micropython.org.
+1. Flash firmware once:
+
+```powershell
+.\flash_micropython.ps1 -Port COM13 -FirmwarePath C:\path\ESP32_GENERIC.bin -PythonExe C:\Users\irazv\AppData\Local\Programs\Python\Python313\python.exe
+```
+
+1. From this folder, deploy app files to the board:
+
+```powershell
+.\deploy.ps1 -Port COM13
+```
+
+1. Open serial monitor:
+
+```powershell
+mpremote connect COM13 repl
+```
+
+1. First run creates `config.json` on-device if missing. Fill placeholders and reboot.
+
+```powershell
+mpremote connect COM13 fs cat :/config.json
+```
+
+## First run behavior
+
+1. Boot the app.
+2. If `config.json` does not exist, it is auto-created.
+3. App prints a config warning and pauses.
+4. Edit `config.json` on the device and replace placeholders.
+5. Reboot to start normal operation.
+
+## Config notes
+
+- `solar.enabled` defaults to `false` to avoid blocking startup for users without SolarMan credentials.
+- `metrics.enabled` defaults to `false`; enable only when your local PC metrics endpoint is running.
+- Keep `config.json` out of git; this repository ignores `src/weather_station_mpy/config.json`.
+
+## PC metrics endpoint (Page 5)
+
+The ESP32 fetches PC metrics over LAN HTTP every 10 seconds (configurable).
+
+1. Install dependency on your PC:
+
+```powershell
+pip install -r .\solarmann\requirements-pc-monitor.txt
+```
+
+1. Start the PC API:
+
+```powershell
+python .\solarmann\pc_metrics_api.py --host 0.0.0.0 --port 8765 --disk-path C:\
+```
+
+1. Update your device `config.json`:
+
+```json
+"metrics": {
+  "enabled": true,
+  "pc_url": "http://<PC_LAN_IP>:8765/api/system/metrics",
+  "refresh_ms": 10000,
+  "stale_ms": 120000,
+  "timeout_ms": 3000
+}
+```
+
+1. Deploy again and switch to page `[5/5]` using the hardware button.
+
+## Next implementation targets
+
+- Full icon primitives and geometry parity with Arduino page renderers.
+- Non-blocking HTTP strategy to reduce render jitter during API calls.
+- Improved forecast memory profile (selective extraction and payload release).
+- TLS hardening options for API requests where feasible on MicroPython.
