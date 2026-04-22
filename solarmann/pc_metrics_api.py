@@ -24,10 +24,14 @@ except Exception:
 def _pick_temperature_c() -> Optional[float]:
     """Best-effort temperature extraction across platforms/sensors.
 
-    Strategy:
-    1. psutil.sensors_temperatures() — works on Linux/macOS.
-    2. WMI MSAcpi_ThermalZoneTemperature — Windows fallback.
-    Returns None when neither source is available (rendered as N/A on device).
+    Strategy (in order):
+    1. psutil.sensors_temperatures()         — Linux / macOS
+    2. WMI MSAcpi_ThermalZoneTemperature     — Windows (ACPI zones, tenths-K)
+    3. WMI Win32_TemperatureProbe            — Windows (CIM probe, tenths-K)
+
+    Returns None when no source is available; the display shows "N/A" in that
+    case.  On many gaming/Lenovo laptops all WMI paths return None — use
+    LibreHardwareMonitor (lhm_bridge option planned) for full coverage.
     """
     # --- psutil path (Linux / macOS) ----------------------------------------
     try:
@@ -41,17 +45,30 @@ def _pick_temperature_c() -> Optional[float]:
     except (AttributeError, NotImplementedError, OSError, RuntimeError):
         pass
 
-    # --- WMI path (Windows) -------------------------------------------------
-    if _WMI_AVAILABLE:
-        try:
-            # MSAcpi_ThermalZoneTemperature reports in tenths of Kelvin.
-            zones = _wmi.WMI(namespace=r"root\wmi").MSAcpi_ThermalZoneTemperature()
-            if zones:
-                # Average all zones for a single representative value.
-                temps = [(z.CurrentTemperature / 10.0) - 273.15 for z in zones]
-                return round(sum(temps) / len(temps), 1)
-        except Exception:
-            pass
+    if not _WMI_AVAILABLE:
+        return None
+
+    # --- WMI path 1: MSAcpi_ThermalZoneTemperature (tenths of Kelvin) -------
+    try:
+        zones = _wmi.WMI(namespace=r"root\wmi").MSAcpi_ThermalZoneTemperature()
+        if zones:
+            temps = [(z.CurrentTemperature / 10.0) - 273.15 for z in zones]
+            return round(sum(temps) / len(temps), 1)
+    except Exception:
+        pass
+
+    # --- WMI path 2: Win32_TemperatureProbe (tenths of Kelvin, if reported) -
+    try:
+        probes = _wmi.WMI().Win32_TemperatureProbe()
+        readings = [
+            (p.CurrentReading / 10.0) - 273.15
+            for p in probes
+            if p.CurrentReading is not None and p.CurrentReading not in (32768, 0)
+        ]
+        if readings:
+            return round(sum(readings) / len(readings), 1)
+    except Exception:
+        pass
 
     return None
 

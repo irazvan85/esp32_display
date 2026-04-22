@@ -83,6 +83,10 @@ Write-Host "  Disk: $DiskPath" -ForegroundColor Green
 Write-Host "  Press Ctrl+C to stop." -ForegroundColor Green
 Write-Host "=================================================" -ForegroundColor Green
 Write-Host ""
+Write-Host "[note] Temperature requires hardware sensor access." -ForegroundColor DarkCyan
+Write-Host "       If it shows N/A, run LibreHardwareMonitor and" -ForegroundColor DarkCyan
+Write-Host "       enable its remote web server on port 8085." -ForegroundColor DarkCyan
+Write-Host ""
 
 try {
     & $PythonExe $ApiScript --host $BindHost --port $Port --disk-path $DiskPath
