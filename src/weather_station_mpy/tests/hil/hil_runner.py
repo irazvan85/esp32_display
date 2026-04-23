@@ -58,10 +58,12 @@ _APP_ROOT  = os.path.normpath(os.path.join(_HERE, "..", ".."))
 _DEVICE    = os.path.join(_APP_ROOT, "tests", "device")
 _RUNNER_PY = os.path.join(_DEVICE, "runner.py")
 
+# boot_clean is a host-side test; path=None signals special dispatch.
 _SUITES = {
-    "hardware": os.path.join(_DEVICE, "test_hardware.py"),
-    "network":  os.path.join(_DEVICE, "test_network.py"),
-    "app":      os.path.join(_DEVICE, "test_app.py"),
+    "hardware":   os.path.join(_DEVICE, "test_hardware.py"),
+    "network":    os.path.join(_DEVICE, "test_network.py"),
+    "app":        os.path.join(_DEVICE, "test_app.py"),
+    "boot_clean": None,
 }
 
 # Patterns for UART log lines
@@ -271,9 +273,18 @@ def main():
     total_crash = 0
 
     for suite_name, suite_path in suites:
-        results, crashed = _run_suite(
-            args.port, suite_name, suite_path, args.timeout, args.verbose
-        )
+        if suite_path is None:
+            # host-side boot_clean test — uses pyserial directly
+            sys.path.insert(0, _HERE)
+            from test_boot_clean import run_boot_clean
+            boot_timeout = max(args.timeout, 30)  # always give at least 30 s
+            results, crashed = run_boot_clean(
+                args.port, timeout_s=boot_timeout, verbose=args.verbose
+            )
+        else:
+            results, crashed = _run_suite(
+                args.port, suite_name, suite_path, args.timeout, args.verbose
+            )
         _print_table(suite_name, results, crashed)
 
         total_pass  += sum(1 for r in results if r["status"] == "PASS")

@@ -103,16 +103,63 @@ def test_spi_bus_config():
     assert_equal(board.LCD_BLK,  32)
 
 
+def test_spi_after_wifi_disconnect():
+    """REQ-BOOT-01: SPI bus init must succeed after WiFi disconnect().
+
+    Reproduces the SW_CPU_RESET (crash recovery) race: WiFi is active,
+    disconnect() is called (as boot.py now does), then the SPI bus is
+    initialised.  Without the disconnect() guard, GDMA from the WiFi
+    auto-reconnect scan blocks spi_bus_initialize() → host_id not initialized
+    → Guru Meditation (LoadProhibited at EXCVADDR:0x74).
+    """
+    import network
+    import machine
+    import board
+    import time
+
+    wlan = network.WLAN(network.STA_IF)
+    assert_true(wlan.active(), "WiFi STA must be active (pre-init by boot.py)")
+
+    # Simulate the boot.py disconnect() called after SW_CPU_RESET
+    try:
+        wlan.disconnect()
+    except OSError:
+        pass  # already idle — expected
+    time.sleep_ms(200)
+
+    # Init SPI — this is the operation that crashed without the fix
+    spi = machine.SPI(
+        board.SPI_BUS,
+        baudrate=40_000_000,
+        polarity=0, phase=0, bits=8,
+        firstbit=machine.SPI.MSB,
+        sck=machine.Pin(board.LCD_SCLK),
+        mosi=machine.Pin(board.LCD_MOSI),
+        miso=machine.Pin(19),
+    )
+    try:
+        # A single 0x00 byte proves the handle is valid without touching the
+        # display (CS is not asserted, so the display ignores the transaction).
+        # With a NULL handle the IDF would raise OSError before even sending.
+        spi.write(b'\x00')
+        assert_true(True, "SPI write succeeded after WiFi disconnect")
+    except OSError as exc:
+        assert_true(False, "SPI.write() raised after WiFi disconnect: %s" % exc)
+    finally:
+        spi.deinit()
+
+
 # ── register and run ──────────────────────────────────────────────────────────
 
 print("[TEST] === Hardware Tests ===")
-run("heap_minimum",        test_heap_minimum)
-run("wifi_sta_active",     test_wifi_sta_active)
-run("display_importable",  test_display_importable)
-run("gpio_button_readable",test_gpio_button_readable)
-run("flash_4mb",           test_flash_4mb)
-run("filesystem_mounted",  test_filesystem_mounted)
-run("filesystem_writable", test_filesystem_writable)
-run("board_constants",     test_board_constants)
-run("spi_bus_config",      test_spi_bus_config)
+run("heap_minimum",              test_heap_minimum)
+run("wifi_sta_active",           test_wifi_sta_active)
+run("display_importable",        test_display_importable)
+run("gpio_button_readable",      test_gpio_button_readable)
+run("flash_4mb",                 test_flash_4mb)
+run("filesystem_mounted",        test_filesystem_mounted)
+run("filesystem_writable",       test_filesystem_writable)
+run("board_constants",           test_board_constants)
+run("spi_bus_config",            test_spi_bus_config)
+run("spi_after_wifi_disconnect", test_spi_after_wifi_disconnect)
 summary()

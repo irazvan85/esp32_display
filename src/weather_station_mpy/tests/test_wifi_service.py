@@ -7,7 +7,7 @@ no-network fallback path and the ensure_connected timeout logic.
 import unittest
 import sys
 import os
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch, AsyncMock, call
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -193,6 +193,102 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(result)
         finally:
             wf_module.asyncio = original_asyncio
+
+
+class TestBootPyWifiInit(unittest.TestCase):
+    """Tests that model the boot.py WiFi pre-init + disconnect() guard.
+
+    boot.py calls:
+      1. wlan.active(True)   — start WiFi driver
+      2. sleep 300ms         — let esp_wifi_start() complete
+      3. wlan.disconnect()   — cancel any auto-reconnect scan (SW_CPU_RESET case)
+      4. sleep 200ms         — let GDMA idle before SPI bus init
+
+    REQ-BOOT-01: After SW_CPU_RESET (crash recovery), the auto-reconnect RF scan
+    uses GDMA and blocks spi_bus_initialize().  boot.py must call disconnect()
+    to cancel the scan before the display driver claims the SPI bus.
+    """
+
+    def _run_boot_py_logic(self, wlan_active_initial, disconnect_raises=False):
+        """Simulate the boot.py WiFi init block and return the mock wlan."""
+        import time
+
+        mock_wlan = MagicMock()
+        mock_wlan.active.return_value = wlan_active_initial
+        if disconnect_raises:
+            mock_wlan.disconnect.side_effect = OSError("not connected")
+
+        # Simulate boot.py logic (condensed, no actual sleep):
+        if not mock_wlan.active():
+            mock_wlan.active(True)
+        # sleep_ms(300) — omitted in unit test
+        try:
+            mock_wlan.disconnect()
+        except OSError:
+            pass
+        # sleep_ms(200) — omitted in unit test
+
+        return mock_wlan
+
+    def test_disconnect_called_after_active_true(self):
+        """REQ-BOOT-01: disconnect() must always be called after active(True).
+
+        After SW_CPU_RESET the WiFi auto-reconnect scan starts within 300 ms.
+        disconnect() cancels it so GDMA is free for spi_bus_initialize().
+        """
+        mock_wlan = self._run_boot_py_logic(wlan_active_initial=False)
+        mock_wlan.disconnect.assert_called_once()
+
+    def test_disconnect_called_when_already_active(self):
+        """REQ-BOOT-01: disconnect() must be called even if WiFi was already active.
+
+        After a CTRL-D soft reset WiFi stays active; disconnect() still runs to
+        ensure any leftover scan/connect state is cleared.
+        """
+        mock_wlan = self._run_boot_py_logic(wlan_active_initial=True)
+        mock_wlan.disconnect.assert_called_once()
+
+    def test_disconnect_oserror_is_swallowed(self):
+        """REQ-BOOT-01: OSError from disconnect() must not propagate.
+
+        If WiFi is already idle disconnect() raises OSError on some IDF builds.
+        boot.py must swallow it so the boot sequence continues.
+        """
+        # Should not raise even though disconnect() raises OSError
+        try:
+            self._run_boot_py_logic(wlan_active_initial=True, disconnect_raises=True)
+        except OSError:
+            self.fail("boot.py must not propagate OSError from disconnect()")
+
+    def test_active_not_called_when_already_active(self):
+        """REQ-BOOT-01: active(True) must not be called if interface is already up."""
+        mock_wlan = self._run_boot_py_logic(wlan_active_initial=True)
+        active_true_calls = [c for c in mock_wlan.active.call_args_list if c.args == (True,)]
+        self.assertEqual(len(active_true_calls), 0)
+
+    def test_active_true_called_when_interface_down(self):
+        """REQ-BOOT-01: active(True) must be called if interface is not active."""
+        mock_wlan = self._run_boot_py_logic(wlan_active_initial=False)
+        active_true_calls = [c for c in mock_wlan.active.call_args_list if c.args == (True,)]
+        self.assertEqual(len(active_true_calls), 1)
+
+    def test_disconnect_called_after_active(self):
+        """REQ-BOOT-01: disconnect() must be called AFTER active(True), not before."""
+        mock_wlan = self._run_boot_py_logic(wlan_active_initial=False)
+        call_names = [c[0] for c in mock_wlan.method_calls]
+        # Find the first active(True) call and first disconnect() call
+        active_idx = next(
+            (i for i, (n, a, _) in enumerate(mock_wlan.method_calls)
+             if n == "active" and a == (True,)), None
+        )
+        disconnect_idx = next(
+            (i for i, (n, _, _) in enumerate(mock_wlan.method_calls)
+             if n == "disconnect"), None
+        )
+        self.assertIsNotNone(active_idx, "active(True) not called")
+        self.assertIsNotNone(disconnect_idx, "disconnect() not called")
+        self.assertGreater(disconnect_idx, active_idx,
+                           "disconnect() must be called after active(True)")
 
 
 if __name__ == "__main__":

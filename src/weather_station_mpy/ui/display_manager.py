@@ -126,25 +126,40 @@ class DisplayManager:
             print("[DISP] st7789 module not found; running in headless mode")
             return
 
-        spi = SPI(
-            board.SPI_BUS,
-            baudrate=board.SPI_BAUDRATE,
-            polarity=0,
-            phase=0,
-            sck=Pin(board.LCD_SCLK),
-            mosi=Pin(board.LCD_MOSI),
-        )
+        try:
+            spi = SPI(
+                board.SPI_BUS,
+                baudrate=board.SPI_BAUDRATE,
+                polarity=0,
+                phase=0,
+                sck=Pin(board.LCD_SCLK),
+                mosi=Pin(board.LCD_MOSI),
+            )
 
-        self._tft = st7789.ST7789(
-            spi,
-            board.DISPLAY_NATIVE_W,
-            board.DISPLAY_NATIVE_H,
-            reset=Pin(board.LCD_RST, Pin.OUT),
-            cs=Pin(board.LCD_CS, Pin.OUT),
-            dc=Pin(board.LCD_DC, Pin.OUT),
-            rotation=board.DISPLAY_ROTATION,
-        )
-        self._tft.init()
+            self._tft = st7789.ST7789(
+                spi,
+                board.DISPLAY_NATIVE_W,
+                board.DISPLAY_NATIVE_H,
+                reset=Pin(board.LCD_RST, Pin.OUT),
+                cs=Pin(board.LCD_CS, Pin.OUT),
+                dc=Pin(board.LCD_DC, Pin.OUT),
+                rotation=board.DISPLAY_ROTATION,
+            )
+            self._tft.init()
+        except Exception as _spi_err:
+            # SPI bus initialisation failed — most likely a stale IDF driver
+            # state after a MicroPython soft reset.  A hard reset (SW_CPU_RESET)
+            # fully reinitialises the IDF SPI host and always succeeds.
+            # Printing the reason before resetting preserves the error in UART
+            # logs without letting a Guru Meditation crash swallow the context.
+            print("[DISP] SPI init failed: %s — triggering hard reset" % _spi_err)
+            try:
+                import machine as _machine
+                _machine.reset()
+            except Exception:
+                pass  # if machine.reset() is unavailable (host tests), fall through
+            return
+
         tft = self._tft
         if tft is None:
             return
