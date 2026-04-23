@@ -7,7 +7,7 @@ build/
 *.elf
 *.bin
 *.map
-
+*.pyc
 # OS
 .DS_Store
 Thumbs.db
