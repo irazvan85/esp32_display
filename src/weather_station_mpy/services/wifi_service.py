@@ -122,12 +122,16 @@ class WifiService:
 
         final_status = self._wlan.status()
 
-        # If the timeout expires but IDF still reports CONNECTING, force a
-        # one-shot STA restart so the next retry starts from a clean state.
-        # This avoids persistent CONNECTING->terminal-error cascades observed
-        # after soft reboot on ESP32/IDF v5.x.
-        if final_status == _STAT_CONNECTING:
-            print("[WiFi] timeout in CONNECTING state - cycling STA")
+        # Force a one-shot STA restart so the next retry starts from a clean state.
+        # Two cases require this:
+        #   • CONNECTING timeout: IDF state machine stuck in CONNECTING (1001).
+        #   • Terminal error (200-204, especially 202 = auth-fail): disconnect()
+        #     returns status to IDLE (1000) but IDF retains a persistent
+        #     wifi_sta_disconn_reason code.  The next connect() reads that code
+        #     and fails immediately with 202 even when credentials are correct.
+        #     active(False/True) is the only reliable way to clear this reason.
+        if final_status == _STAT_CONNECTING or final_status in _STAT_TERMINAL_ERRORS:
+            print("[WiFi] clearing stale state (status=%d) - cycling STA" % final_status)
             try:
                 self._wlan.active(False)
                 await asyncio.sleep_ms(300)

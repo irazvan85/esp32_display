@@ -269,8 +269,11 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
             result = await svc.ensure_connected()
             elapsed = time.monotonic() - t0
             self.assertFalse(result)
-            # Should exit in ~0.5 s grace + ~0.2 s first poll: well under 2 s.
-            self.assertLess(elapsed, 1.5,
+            # Should exit loop in ~0.5 s grace + ~0.2 s first poll (early exit),
+            # then ~0.8 s for the STA cycle (active(False/True)).
+            # Total: ~1.5 s.  Without early exit the loop alone would run 2.0 s,
+            # giving ~3.3 s total.  Threshold of 2.5 s distinguishes the two paths.
+            self.assertLess(elapsed, 2.5,
                             "terminal error should trigger early exit, not full timeout")
             mock_wlan.connect.assert_called_once()
         finally:
@@ -298,8 +301,14 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
         finally:
             wf_module.asyncio = original_asyncio
 
-    async def test_terminal_error_does_not_cycle_sta_interface(self):
-        """REQ-WIFI-05: terminal errors should exit early without STA hard-reset."""
+    async def test_terminal_error_cycles_sta_interface(self):
+        """REQ-WIFI-05: terminal error (202) must trigger active(False/True) STA cycle.
+
+        disconnect() returns status to IDLE but IDF retains a persistent
+        wifi_sta_disconn_reason code.  The next connect() reads that reason and
+        fails immediately with 202 even when credentials are correct.
+        active(False/True) is the only way to clear this stale reason code.
+        """
         import services.wifi_service as wf_module
         import asyncio as std_asyncio
 
@@ -310,8 +319,8 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
             )
             result = await svc.ensure_connected()
             self.assertFalse(result)
-            active_calls = [c for c in mock_wlan.active.call_args_list if c.args in ((False,), (True,))]
-            self.assertEqual(active_calls, [])
+            mock_wlan.active.assert_any_call(False)
+            mock_wlan.active.assert_any_call(True)
         finally:
             wf_module.asyncio = original_asyncio
 
