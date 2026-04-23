@@ -14,6 +14,15 @@ except ImportError:
 
 from compat import ticks_diff, ticks_ms
 
+# MicroPython ESP32 network status constants.
+# STAT_IDLE = 1000, STAT_CONNECTING = 1001, STAT_GOT_IP = 1010
+# Error states (terminal, no point waiting longer): 200-204
+_STAT_IDLE = getattr(network, "STAT_IDLE", 1000) if network else 1000
+_STAT_CONNECTING = getattr(network, "STAT_CONNECTING", 1001) if network else 1001
+_STAT_GOT_IP = getattr(network, "STAT_GOT_IP", 1010) if network else 1010
+# Any status in this set means the connection has terminally failed
+_STAT_TERMINAL_ERRORS = frozenset({200, 201, 202, 203, 204})
+
 
 class WifiService:
     def __init__(self, cfg):
@@ -54,19 +63,28 @@ class WifiService:
 
         ssid = self._cfg["wifi"]["ssid"]
         password = self._cfg["wifi"]["password"]
-        timeout_ms = int(self._cfg["wifi"].get("connect_timeout_ms", 10_000))
+        timeout_ms = int(self._cfg["wifi"].get("connect_timeout_ms", 15_000))
 
-        # If the radio is still in a non-idle state (e.g. STAT_CONNECTING from a
-        # previous timeout), reset it first.  On IDF v5.5.1 calling connect()
-        # while status != STAT_IDLE (0) raises "OSError: Wifi Internal State
-        # Error" — the underlying WiFi task keeps trying even after the
-        # MicroPython-level timeout elapses.
-        try:
-            if self._wlan.status() != 0:  # 0 == network.STAT_IDLE
+        current_status = self._wlan.status()
+        print("[WiFi] pre-connect status=%d" % current_status)
+
+        # Reset the radio to STAT_IDLE before issuing connect().
+        # Skip only when already idle (STAT_IDLE = 1000).
+        #   • STAT_CONNECTING (1001): must cancel the active attempt; calling
+        #     connect() while connecting raises "Wifi Internal State Error".
+        #   • Terminal errors 200-204 (auth fail, no AP, etc.): the AP already
+        #     terminated the connection but the IDF state machine has not
+        #     returned to IDLE yet; connect() on this state also raises
+        #     "Wifi Internal State Error".
+        # Previously the check used `!= 0` (always True since STAT_IDLE = 1000,
+        # not 0) which was semantically correct but used the wrong constant.
+        if current_status != _STAT_IDLE:
+            try:
                 self._wlan.disconnect()
-                await asyncio.sleep_ms(300)
-        except OSError:
-            pass
+                await asyncio.sleep_ms(500)
+                print("[WiFi] post-disconnect status=%d" % self._wlan.status())
+            except OSError:
+                pass
 
         print("[WiFi] Connecting to %s" % ssid)
         try:
@@ -75,15 +93,51 @@ class WifiService:
             print("[WiFi] connect() error: %s" % exc)
             return False
 
+        # Grace period: connect() is asynchronous on Core 0. The IDF state
+        # machine takes ~200-500 ms to transition from the previous attempt's
+        # status to STAT_CONNECTING (1001). Checking status() before this
+        # transition would see a stale code and trigger a false early exit.
+        # The timeout window starts AFTER this settle delay.
+        await asyncio.sleep_ms(500)
         started = ticks_ms()
+
+        last_status = -1
         while (not self._wlan.isconnected()) and (
             ticks_diff(ticks_ms(), started) < timeout_ms
         ):
+            st = self._wlan.status()
+            if st != last_status:
+                print("[WiFi] status=%d" % st)  # log every state transition
+                last_status = st
+            # Terminal error: AP has rejected us or can't be found — the WiFi
+            # task has already stopped, no point waiting for the full timeout.
+            if st in _STAT_TERMINAL_ERRORS:
+                print("[WiFi] Connection failed (status=%d)" % st)
+                break
             await asyncio.sleep_ms(200)
 
         if self._wlan.isconnected():
             print("[WiFi] Connected, IP: %s" % self.ip())
             return True
 
-        print("[WiFi] Connect timeout - offline mode")
+        final_status = self._wlan.status()
+
+        # If the timeout expires but IDF still reports CONNECTING, force a
+        # one-shot STA restart so the next retry starts from a clean state.
+        # This avoids persistent CONNECTING->terminal-error cascades observed
+        # after soft reboot on ESP32/IDF v5.x.
+        if final_status == _STAT_CONNECTING:
+            print("[WiFi] timeout in CONNECTING state - cycling STA")
+            try:
+                self._wlan.active(False)
+                await asyncio.sleep_ms(300)
+                self._wlan.active(True)
+                await asyncio.sleep_ms(500)
+                print("[WiFi] STA reset complete (status=%d)" % self._wlan.status())
+            except OSError as exc:
+                print("[WiFi] STA reset failed: %s" % exc)
+
+        # No explicit cleanup: the next ensure_connected() call will check
+        # status and call disconnect() via the non-idle guard above.
+        print("[WiFi] offline (status=%d)" % self._wlan.status())
         return False

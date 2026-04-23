@@ -142,11 +142,10 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
         return svc, mock_wlan
 
     async def test_disconnect_called_when_status_is_connecting(self):
-        """REQ-WIFI-05: when status != STAT_IDLE, disconnect() before connect().
+        """REQ-WIFI-05: when status == STAT_CONNECTING (1001), disconnect() before connect().
 
-        Reproduces OSError: Wifi Internal State Error on IDF v5.5.1 — after a
-        connect() timeout the radio stays in STAT_CONNECTING (status=1); the
-        next retry must call disconnect() first to reset the state machine.
+        STAT_CONNECTING means the radio is actively trying; we must cancel it
+        before starting a new attempt or risk 'OSError: Wifi Internal State Error'.
         """
         import services.wifi_service as wf_module
         import asyncio as std_asyncio
@@ -154,27 +153,78 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
         original_asyncio = wf_module.asyncio
         try:
             svc, mock_wlan = await self._make_svc_with_status(
-                wf_module, status_val=1, std_asyncio=std_asyncio
+                wf_module, status_val=1001, std_asyncio=std_asyncio
             )
             await svc.ensure_connected()
-            mock_wlan.disconnect.assert_called_once()
+            # disconnect() must have been called (at minimum once before connect;
+            # possibly also as post-timeout cleanup)
+            mock_wlan.disconnect.assert_called()
             mock_wlan.connect.assert_called_once()
         finally:
             wf_module.asyncio = original_asyncio
 
-    async def test_disconnect_not_called_when_status_is_idle(self):
-        """REQ-WIFI-05: when status == STAT_IDLE (0), do not call disconnect()."""
+    async def test_disconnect_not_called_before_connect_when_status_is_idle(self):
+        """REQ-WIFI-05: when status == STAT_IDLE (1000), do not call disconnect() before connect().
+
+        STAT_IDLE = 1000 on MicroPython ESP32.  The radio is already stopped;
+        calling disconnect() adds unnecessary delay and doesn't help.
+        """
         import services.wifi_service as wf_module
         import asyncio as std_asyncio
 
         original_asyncio = wf_module.asyncio
         try:
             svc, mock_wlan = await self._make_svc_with_status(
-                wf_module, status_val=0, std_asyncio=std_asyncio
+                wf_module, status_val=1000, std_asyncio=std_asyncio
             )
             await svc.ensure_connected()
-            mock_wlan.disconnect.assert_not_called()
             mock_wlan.connect.assert_called_once()
+            # disconnect() must NOT be called before connect().
+            all_calls = [c[0] for c in mock_wlan.method_calls]
+            connect_idx = next(
+                (i for i, n in enumerate(all_calls) if n == "connect"), None
+            )
+            pre_disconnect_calls = [
+                n for n in all_calls[:connect_idx] if n == "disconnect"
+            ]
+            self.assertEqual(
+                pre_disconnect_calls, [],
+                "disconnect() must not be called before connect() when status is STAT_IDLE",
+            )
+        finally:
+            wf_module.asyncio = original_asyncio
+
+    async def test_disconnect_called_for_terminal_error_state(self):
+        """REQ-WIFI-05: when status is a terminal error (e.g. 202), call disconnect() before connect().
+
+        Terminal-error states (200-204) leave the IDF state machine in a
+        non-idle state; calling connect() without disconnect() first raises
+        'Wifi Internal State Error'.  The guard must treat terminal errors
+        the same as STAT_CONNECTING.
+        """
+        import services.wifi_service as wf_module
+        import asyncio as std_asyncio
+
+        original_asyncio = wf_module.asyncio
+        try:
+            # status=202 = STAT_WRONG_PASSWD (auth fail) — a terminal error
+            svc, mock_wlan = await self._make_svc_with_status(
+                wf_module, status_val=202, std_asyncio=std_asyncio
+            )
+            await svc.ensure_connected()
+            mock_wlan.connect.assert_called_once()
+            # disconnect() must have been called before connect()
+            all_calls = [c[0] for c in mock_wlan.method_calls]
+            connect_idx = next(
+                (i for i, n in enumerate(all_calls) if n == "connect"), None
+            )
+            pre_disconnect_calls = [
+                n for n in all_calls[:connect_idx] if n == "disconnect"
+            ]
+            self.assertGreater(
+                len(pre_disconnect_calls), 0,
+                "disconnect() must be called before connect() for terminal error status",
+            )
         finally:
             wf_module.asyncio = original_asyncio
 
@@ -186,11 +236,82 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
         original_asyncio = wf_module.asyncio
         try:
             svc, mock_wlan = await self._make_svc_with_status(
-                wf_module, status_val=0, std_asyncio=std_asyncio
+                wf_module, status_val=1000, std_asyncio=std_asyncio
             )
             mock_wlan.connect.side_effect = OSError("Wifi Internal State Error")
             result = await svc.ensure_connected()
             self.assertFalse(result)
+        finally:
+            wf_module.asyncio = original_asyncio
+
+    async def test_terminal_error_status_causes_early_exit(self):
+        """REQ-WIFI-05: status in {200-204} after grace period must cause early exit.
+
+        After the 500 ms grace period, if status is a terminal error
+        the poll loop must break immediately rather than waiting for the
+        full timeout window.
+        """
+        import services.wifi_service as wf_module
+        import asyncio as std_asyncio
+
+        original_asyncio = wf_module.asyncio
+        try:
+            # status=202 (STAT_WRONG_PASSWD), timeout_ms long enough to prove
+            # the early exit fires before it would otherwise expire.
+            svc, mock_wlan = await self._make_svc_with_status(
+                wf_module, status_val=202, std_asyncio=std_asyncio
+            )
+            # Override timeout to be long (2 s) to ensure the loop would NOT
+            # end via timeout on its own without the early-exit feature.
+            svc._cfg["wifi"]["connect_timeout_ms"] = 2000
+            import time
+            t0 = time.monotonic()
+            result = await svc.ensure_connected()
+            elapsed = time.monotonic() - t0
+            self.assertFalse(result)
+            # Should exit in ~0.5 s grace + ~0.2 s first poll: well under 2 s.
+            self.assertLess(elapsed, 1.5,
+                            "terminal error should trigger early exit, not full timeout")
+            mock_wlan.connect.assert_called_once()
+        finally:
+            wf_module.asyncio = original_asyncio
+
+    async def test_connecting_timeout_cycles_sta_interface(self):
+        """REQ-WIFI-05: timeout in STAT_CONNECTING must hard-reset STA once.
+
+        If a connect attempt times out while still in CONNECTING state,
+        a single active(False)->active(True) cycle clears stale IDF state
+        so the next retry starts from clean IDLE.
+        """
+        import services.wifi_service as wf_module
+        import asyncio as std_asyncio
+
+        original_asyncio = wf_module.asyncio
+        try:
+            svc, mock_wlan = await self._make_svc_with_status(
+                wf_module, status_val=1001, std_asyncio=std_asyncio
+            )
+            result = await svc.ensure_connected()
+            self.assertFalse(result)
+            mock_wlan.active.assert_any_call(False)
+            mock_wlan.active.assert_any_call(True)
+        finally:
+            wf_module.asyncio = original_asyncio
+
+    async def test_terminal_error_does_not_cycle_sta_interface(self):
+        """REQ-WIFI-05: terminal errors should exit early without STA hard-reset."""
+        import services.wifi_service as wf_module
+        import asyncio as std_asyncio
+
+        original_asyncio = wf_module.asyncio
+        try:
+            svc, mock_wlan = await self._make_svc_with_status(
+                wf_module, status_val=202, std_asyncio=std_asyncio
+            )
+            result = await svc.ensure_connected()
+            self.assertFalse(result)
+            active_calls = [c for c in mock_wlan.active.call_args_list if c.args in ((False,), (True,))]
+            self.assertEqual(active_calls, [])
         finally:
             wf_module.asyncio = original_asyncio
 

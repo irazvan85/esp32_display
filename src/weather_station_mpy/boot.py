@@ -25,23 +25,34 @@ try:
     # esp_wifi_start() in IDF v5.x is asynchronous: allow 300 ms for the
     # WiFi FreeRTOS task to start on Core 0 before we call disconnect().
     _time.sleep_ms(300)
-    # After SW_CPU_RESET (crash recovery) the WiFi driver auto-reconnects
-    # using stored NVS credentials.  The RF scan uses GDMA; if spi_bus_initialize()
-    # races the scan, spicommon_periph_claim() fails → host_id stays NULL →
-    # Guru Meditation (LoadProhibited at EXCVADDR:0x74) on the first SPI write.
-    # Calling disconnect() cancels the scan and returns the radio to STAT_IDLE
-    # so GDMA is free when the display initialises SPI shortly after.
-    try:
-        _wlan.disconnect()
-    except OSError:
-        pass  # already idle — disconnect() is a no-op, OSError is expected
-    # Wait for the radio to fully idle and for any in-flight GDMA transfers
-    # to complete before SPI bus init runs.
-    _time.sleep_ms(200)
+    # On soft reset, clear any lingering STA state from the previous runtime.
+    # This keeps SPI-safe behavior while avoiding sticky auth/connect states.
+    from machine import reset_cause as _reset_cause, PWRON_RESET as _PWRON_RESET
+    _is_poweron = (_reset_cause() == _PWRON_RESET)
+    del _reset_cause, _PWRON_RESET
+    if not _is_poweron:
+        try:
+            _wlan.disconnect()
+        except OSError:
+            pass  # already idle — disconnect() is a no-op, OSError is expected
+        _time.sleep_ms(150)
+        try:
+            _wlan.active(False)
+            _time.sleep_ms(250)
+            _wlan.active(True)
+            _time.sleep_ms(350)
+        except Exception as _wifi_reset_err:
+            print("[BOOT] WiFi STA cycle skipped:", _wifi_reset_err)
+    del _is_poweron
     del _time
+    _mac = _wlan.config("mac")
+    _mac_str = "%02x:%02x:%02x:%02x:%02x:%02x" % tuple(_mac)
+    del _mac
+    print("[BOOT] WiFi STA interface ready — MAC: %s" % _mac_str)
+    del _mac_str
+
     del _wlan
     gc.collect()
-    print("[BOOT] WiFi STA interface ready")
 except Exception as _e:
     print("[BOOT] WiFi pre-init failed:", _e)
 finally:
