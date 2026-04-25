@@ -1,0 +1,38 @@
+﻿16:45:06.093 ets Jun  8 2016 00:22:57
+16:45:06.097 rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+16:45:06.097 configsip: 0, SPIWP:0xee
+16:45:06.098 clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+16:45:06.098 mode:DIO, clock div:2
+16:45:06.099 load:0x3fff0030,len:4200
+16:45:06.102 load:0x40078000,len:15236
+16:45:06.102 load:0x40080400,len:3332
+16:45:06.105 entry 0x400805a8
+16:45:06.850 [BOOT] weather_station_mpy boot.py
+16:45:07.201 [BOOT] WiFi DMA pool reserved
+16:45:07.255 [BOOT] SPI2 stale state cleared
+16:45:09.916 ================================================
+16:45:09.919   Retro Weather Clock MicroPython
+16:45:09.924 ================================================
+16:45:10.544 [DISP] ST7789 initialized (improved UI)
+16:45:10.599 [WiFi] prealloc status: active
+16:45:10.680 [WiFi] STA ready ??? MAC: fc:b4:67:21:1f:a0
+16:45:10.683 [WiFi] prealloc STA reset
+16:45:10.685 [WiFi] cycle STA (status=1000)
+16:45:11.501 [WiFi] connecting to IOT
+16:45:17.894 [WiFi] connect failed (status=202)
+16:45:17.895 [WiFi] cycle STA (status=202)
+16:45:18.741 [WiFi] retry connect IOT
+16:45:24.293 [WiFi] connect failed (status=202)
+16:45:24.294 [WiFi] offline (status=202)
+16:45:24.303 [WiFi] cycle STA (status=202)
+16:45:24.344 [Solar] Disabled in config
+16:45:24.521 [MEM] Free heap: 91648 bytes
+16:45:24.644 [ESP] RAM 89kB free  CPU 160MHz
+16:45:25.162 [WiFi] connecting to IOT
+16:45:30.804 [WiFi] connect failed (status=202)
+16:45:30.805 [WiFi] cycle STA (status=202)
+16:45:31.661 [WiFi] retry connect IOT
+16:45:34.776 [ESP] RAM 88kB free  CPU 160MHz
+16:45:37.316 [WiFi] connect failed (status=202)
+16:45:37.316 [WiFi] offline (status=202)
+16:45:44.897 [ESP] RAM 88kB free  CPU 160MHz

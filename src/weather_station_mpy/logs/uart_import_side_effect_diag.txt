@@ -1,0 +1,40 @@
+﻿> mpremote connect COM13 exec import os;n=[e[0] for e in os.ilistdir('/')];m='main.py' in n;b='main_backup.py' in n;print('MAIN_EXISTS',int(m));print('BACKUP_EXISTS',int(b));b and os.remove('/main_backup.py');m and os.rename('/main.py','/main_backup.py');print('RENAMED_MAIN',int(m))
+MAIN_EXISTS 1
+BACKUP_EXISTS 0
+RENAMED_MAIN 1
+> mpremote connect COM13 soft-reset
+> mpremote connect COM13 run logs/wifi_import_side_effect_diag_tmp.py
+[Diag] MARKER A
+[Diag] importing board
+[Diag] imported board
+[Diag] importing app_state
+[Diag] imported app_state
+[Diag] importing config.store.load_config
+[Diag] imported config.store.load_config
+[Diag] importing services.metrics_service
+[Diag] imported services.metrics_service
+[Diag] importing services.solar_service
+[Diag] imported services.solar_service
+[Diag] importing services.time_service
+[Diag] imported services.time_service
+[Diag] importing services.weather_service
+[Diag] imported services.weather_service
+[Diag] importing services.wifi_service.WifiService
+[Diag] imported services.wifi_service.WifiService
+[Diag] importing ui.display_manager
+[Diag] imported ui.display_manager
+[Diag] MARKER B
+[WiFi] Connecting to IOT
+[WiFi] prep start active=True status=1000
+[WiFi] after active(False) status=1000
+[WiFi] after active(True) status=1000
+[WiFi] config(reconnects=0) ok
+[WiFi] after disconnect() status=1000
+[WiFi] prep done status=1000
+[WiFi] status=1000
+[WiFi] status=15
+[WiFi] Connect timeout - offline mode
+ensure_connected: False
+> mpremote connect COM13 exec import os;n=[e[0] for e in os.ilistdir('/')];r='main_backup.py' in n;r and os.rename('/main_backup.py','/main.py');print('RESTORED_MAIN',int(r))
+RESTORED_MAIN 1
+> mpremote connect COM13 soft-reset

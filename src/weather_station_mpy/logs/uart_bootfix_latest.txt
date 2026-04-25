@@ -1,0 +1,35 @@
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi stopped (soft reset)
+[BOOT] WiFi DMA pool reserved
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[DISP] ST7789 initialized (improved UI)
+[WiFi] prealloc status: active
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[WiFi] status=15
+[WiFi] Connect timeout - offline mode
+[Solar] Disabled in config
+[MEM] Free heap: 92080 bytes
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[WiFi] status=15
+[MEM] Free heap: 91952 bytes
+[ESP] RAM 89kB free  CPU 160MHz

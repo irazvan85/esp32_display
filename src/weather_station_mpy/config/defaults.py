@@ -8,6 +8,9 @@ DEFAULT_CONFIG = {
     "wifi": {
         "ssid": "your_wifi_ssid",
         "password": "your_wifi_password",
+        "prefer_bssid_scan": False,
+        "min_heap_for_scan_bytes": 98_000,
+        "bssid": "",
         "connect_timeout_ms": 10_000,
         "check_interval_ms": 30_000,
     },

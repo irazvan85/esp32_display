@@ -1,0 +1,21 @@
+[BTN] Page -> 1
+[WiFi] pre-disconnect status=204
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] pre-connect status=204
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[MEM] Free heap: 91744 bytes
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] status=204
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] pre-disconnect status=204
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] pre-connect status=204
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[WiFi] status=15

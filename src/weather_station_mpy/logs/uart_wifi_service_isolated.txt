@@ -1,0 +1,22 @@
+﻿> mpremote connect COM13 exec import os;n=[e[0] for e in os.ilistdir('/')];m='main.py' in n;b='main_backup.py' in n;print('MAIN_EXISTS',int(m));print('BACKUP_EXISTS',int(b));b and os.remove('/main_backup.py');m and os.rename('/main.py','/main_backup.py');print('RENAMED_MAIN',int(m))
+MAIN_EXISTS 1
+BACKUP_EXISTS 0
+RENAMED_MAIN 1
+> mpremote connect COM13 soft-reset
+> mpremote connect COM13 run logs/wifi_service_isolated_tmp.py
+before ensure is_connected: False
+[WiFi] Connecting to IOT
+[WiFi] prep start active=True status=15
+[WiFi] after active(False) status=15
+[WiFi] after active(True) status=15
+[WiFi] config(reconnects=0) ok
+[WiFi] after disconnect() status=15
+[WiFi] prep done status=15
+[WiFi] status=1001
+[WiFi] Connected, IP: 192.168.1.26
+ensure result: True
+after ensure is_connected: True
+ip: 192.168.1.26
+> mpremote connect COM13 exec import os;n=[e[0] for e in os.ilistdir('/')];r='main_backup.py' in n;r and os.rename('/main_backup.py','/main.py');print('RESTORED_MAIN',int(r))
+RESTORED_MAIN 1
+> mpremote connect COM13 soft-reset

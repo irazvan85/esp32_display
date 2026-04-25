@@ -8,64 +8,43 @@ import gc
 print("[BOOT] weather_station_mpy boot.py")
 gc.collect()
 
-# Pre-initialise the WiFi STA interface HERE, before main.py loads any
-# modules.  network.WLAN(STA_IF) calls esp_wifi_init() which needs ~16 KB
-# of contiguous heap for 10 RX buffers.  Doing this at boot-time (clean
-# heap) avoids the "WiFi Out of Memory" OOM that occurs after imports
-# fragment the heap.
+# ── WiFi DMA pool pre-reservation ────────────────────────────────────────────
+# active(True) may trigger an IDF NVS auto-connect that fails and caches a
+# stale disconnect reason (204/15) in volatile driver memory.  disconnect()
+# alone does NOT clear this reason.  active(False) is the only operation that
+# fully resets the IDF WiFi FSM and clears all cached state.
+# Perform active(False)→active(True) here while the heap is still clean and
+# unfragmented (before main.py imports), so the DMA buffer re-allocation
+# succeeds and the driver starts in a guaranteed-clean state.
 try:
     import network as _net
-    _wlan = _net.WLAN(_net.STA_IF)
-    # Only activate if not already active — never cycle active(False)+active(True).
-    # Cycling free/reallocates the 16 KB WiFi RX buffers and fragments heap,
-    # which can prevent the SPI DMA allocator from finding a contiguous region.
-    if not _wlan.active():
-        _wlan.active(True)
     import time as _time
-    # esp_wifi_start() in IDF v5.x is asynchronous: allow 300 ms for the
-    # WiFi FreeRTOS task to start on Core 0 before we call disconnect().
-    _time.sleep_ms(300)
-    # On soft reset, clear any lingering STA state from the previous runtime.
-    # This keeps SPI-safe behavior while avoiding sticky auth/connect states.
-    from machine import reset_cause as _reset_cause, PWRON_RESET as _PWRON_RESET
-    _is_poweron = (_reset_cause() == _PWRON_RESET)
-    del _reset_cause, _PWRON_RESET
-    if not _is_poweron:
-        try:
-            _wlan.disconnect()
-        except OSError:
-            pass  # already idle — disconnect() is a no-op, OSError is expected
-        _time.sleep_ms(150)
+    _wlan = _net.WLAN(_net.STA_IF)
+    if _wlan.active():
         try:
             _wlan.active(False)
-            _time.sleep_ms(250)
-            _wlan.active(True)
-            _time.sleep_ms(350)
-        except Exception as _wifi_reset_err:
-            print("[BOOT] WiFi STA cycle skipped:", _wifi_reset_err)
-    del _is_poweron
-    del _time
-    _mac = _wlan.config("mac")
-    _mac_str = "%02x:%02x:%02x:%02x:%02x:%02x" % tuple(_mac)
-    del _mac
-    print("[BOOT] WiFi STA interface ready — MAC: %s" % _mac_str)
-    del _mac_str
-
-    del _wlan
+        except OSError:
+            pass
+        _time.sleep_ms(300)
+    _wlan.active(True)
+    try:
+        _wlan.config(reconnects=0)
+    except OSError:
+        pass
+    try:
+        _wlan.disconnect()
+    except OSError:
+        pass
+    _time.sleep_ms(300)
+    print("[BOOT] WiFi DMA pool reserved (clean state)")
+    del _wlan, _net, _time
     gc.collect()
 except Exception as _e:
-    print("[BOOT] WiFi pre-init failed:", _e)
+    print("[BOOT] WiFi pre-alloc failed:", _e)
 finally:
     gc.collect()
 
 # ── SPI2 stale-state cleanup ──────────────────────────────────────────────────
-# On a MicroPython soft reset (Ctrl-D), the Python finalizer calls
-# spi_bus_free() but WiFi GDMA on Core 0 can leave spi_host_t.hal.hw = NULL.
-# The next spi_bus_initialize() then fails silently; every transaction returns
-# "invalid dev handle", and the NULL-pointer deref causes a Guru Meditation
-# LoadProhibited crash.  Acquiring SPI2 here and calling deinit() forces the
-# IDF driver back to a clean "unregistered" state before display_manager runs.
-# This is a no-op after a hardware reset because the bus isn't initialized yet.
 try:
     from machine import SPI as _SPI, Pin as _Pin
     import board as _board
@@ -81,7 +60,6 @@ try:
     gc.collect()
     print("[BOOT] SPI2 stale state cleared")
 except Exception as _e:
-    # On a fresh hardware reset the bus isn't initialized yet — ignore.
     print("[BOOT] SPI2 cleanup skipped:", _e)
 finally:
     gc.collect()

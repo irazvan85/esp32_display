@@ -1,0 +1,25 @@
+﻿=== wifi_direct_no_cycle ===
+ssid IOT
+password_length 9
+reconnects_set True
+disconnect_called True
+connect_called True
+status 1001 t_ms 0
+status 1010 t_ms 3251
+connected_at_ms 3252
+final_isconnected True
+ifconfig ('192.168.1.23', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+
+=== wifi_direct_with_sta_cycle ===
+ssid IOT
+password_length 9
+reconnects_set True
+disconnect_called True
+active_false True
+active_true True
+connect_called True
+status 1000 t_ms 0
+status 1010 t_ms 3502
+connected_at_ms 3502
+final_isconnected True
+ifconfig ('192.168.1.23', '255.255.255.0', '192.168.1.1', '192.168.1.1')

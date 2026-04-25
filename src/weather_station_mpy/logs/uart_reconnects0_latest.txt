@@ -1,0 +1,30 @@
+[DISP] ST7789 initialized (improved UI)
+[WiFi] prealloc status: active
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[WiFi] status=15
+[WiFi] Connect timeout - offline mode
+[Solar] Disabled in config
+[MEM] Free heap: 92160 bytes
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] post-connect status=1001
+[WiFi] status=1001
+[WiFi] status=15
+[MEM] Free heap: 92032 bytes
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz

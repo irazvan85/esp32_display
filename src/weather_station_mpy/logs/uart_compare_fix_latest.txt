@@ -1,0 +1,25 @@
+﻿[WiFi] stale state detected (status=15), resetting STA
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 89kB free  CPU 160MHz
+[MEM] Free heap: 91840 bytes
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] status=15
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] stale state detected (status=15), resetting STA
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 89kB free  CPU 160MHz
+[MEM] Free heap: 91712 bytes
+[ESP] RAM 89kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 89kB free  CPU 160MHz
+[ESP] RAM 89kB free  CPU 160MHz

@@ -1,0 +1,17 @@
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] Connecting to IOT
+[WiFi] prep start active=True status=1000
+[WiFi] after active(False) status=1000
+[WiFi] after active(True) status=1000
+[WiFi] config(reconnects=0) ok
+[WiFi] after disconnect() status=1000
+[WiFi] prep done status=1000
+[WiFi] status=1001
+[WiFi] Connected, IP: 192.168.1.26

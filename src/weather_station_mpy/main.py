@@ -35,7 +35,6 @@ from services.solar_service import SolarService
 from services.time_service import TimeService
 from services.weather_service import WeatherService
 from services.wifi_service import WifiService
-from ui.display_manager import DisplayManager
 
 
 async def button_task(state):
@@ -286,36 +285,56 @@ async def app_main():
     print("  Retro Weather Clock MicroPython")
     print("================================================\n")
 
-    display = DisplayManager()
-    display.init()
-    display.draw_boot("Booting...")
-
     try:
         cfg = load_config("config.json")
     except ConfigNotReadyError as exc:
         print("[CFG] %s" % exc)
+        from ui.display_manager import DisplayManager
+        display = DisplayManager()
+        display.init()
         display.draw_config_error(str(exc))
         while True:
             await asyncio.sleep(5)
 
-    state = AppState()
-    state.metrics_stale_ms = int(cfg.get("metrics", {}).get("stale_ms", 120_000))
+    _wifi_prealloc_ok = False
+    try:
+        import network as _net_pre
+
+        _wlan_pre = _net_pre.WLAN(_net_pre.STA_IF)
+        _wifi_prealloc_ok = bool(_wlan_pre.active())
+        print(
+            "[WiFi] prealloc status: %s"
+            % ("active" if _wifi_prealloc_ok else "inactive")
+        )
+        del _wlan_pre, _net_pre
+    except Exception:
+        print("[WiFi] prealloc status: inactive")
 
     # Maximise contiguous free heap before the WiFi driver allocates its
     # ~16 KB RX-buffer pool.  The AppState + config dicts fragment the heap
     # enough to trigger "WiFi Out of Memory" if this is omitted.
     gc.collect()
 
-    wifi_svc = WifiService(cfg)
+    wifi_svc = WifiService(cfg, preallocated=_wifi_prealloc_ok)
     time_svc = TimeService(cfg)
+
+    # Initial connectivity attempt.
+    online = await wifi_svc.ensure_connected()
+    synced = await time_svc.sync_ntp() if online else False
+
+    from ui.display_manager import DisplayManager
+    display = DisplayManager()
+    display.init()
+    display.draw_boot("Booting...")
+
+    state = AppState()
+    state.metrics_stale_ms = int(cfg.get("metrics", {}).get("stale_ms", 120_000))
+    state.wifi_online = online
+    state.time_synced = synced
+
     weather_svc = WeatherService(cfg)
     solar_svc = SolarService(cfg)
     metrics_svc = MetricsService(cfg)
-
-    # Initial connectivity attempt.
-    state.wifi_online = await wifi_svc.ensure_connected()
-    if state.wifi_online:
-        state.time_synced = await time_svc.sync_ntp()
 
     tasks = [
         asyncio.create_task(button_task(state)),

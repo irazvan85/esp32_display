@@ -96,6 +96,21 @@ mpremote connect COM13 fs cat :/config.json
 - `metrics.enabled` defaults to `false`; enable only when your local PC metrics endpoint is running.
 - Keep `config.json` out of git; this repository ignores `src/weather_station_mpy/config.json`.
 
+## WiFi behavior
+
+### [WiFi/BOOT] Startup order requirement
+
+On this board/firmware, importing `ui.display_manager` before the initial WiFi connection can destabilize the STA handshake (status 15/204 loops). Call `WifiService.ensure_connected()` before importing or initializing `DisplayManager`. Boot-time DMA pre-reservation in `boot.py` must be retained to prevent OOM.
+
+- `wifi.prefer_bssid_scan` (default `false`) enables a pre-connect scan for APs matching `wifi.ssid` and picks the strongest BSSID.
+- `wifi.bssid` can optionally pin the AP BSSID (`aa:bb:cc:dd:ee:ff` format); when set, it overrides scan-based selection.
+- If scan is unavailable, no matching AP is found, or `connect(..., bssid=...)` is unsupported, connection falls back to plain SSID/password connect.
+- **Boot-time DMA reservation** — `boot.py` reserves the WiFi DMA pool on a clean heap using `active(True)` and does not call `disconnect()` in this reservation path.
+- **Single connect attempt per call** — `ensure_connected()` makes one `connect()` attempt per invocation, then polls status until timeout.
+- **Pre-connect stale-state recovery** — if pre-connect status is non-idle, `ensure_connected()` performs an STA cycle (`active(False)` -> `active(True)`) before `connect()`.
+- **No in-call fallback retry** — if that attempt fails, `ensure_connected()` returns offline without a second `connect()` in the same call.
+- **Failure cleanup is STA-cycle only** — after a failed attempt, cleanup uses STA cycling only for `STAT_CONNECTING` or terminal error statuses (`200`-`204`); no `disconnect()`-based cleanup.
+
 ## PC metrics endpoint (Page 5)
 
 The ESP32 fetches PC metrics over LAN HTTP every 10 seconds (configurable).

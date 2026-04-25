@@ -1,0 +1,47 @@
+
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] Connecting to IOT
+[WiFi] status=1000
+[WiFi] Connected, IP: 192.168.1.26
+[NTP] Time synced (UTC): 16:17:57
+[DISP] ST7789 initialized (improved UI)
+[OWM] fetch error: -202
+[Solar] Disabled in config
+[PC] fetch error: -203
+[MEM] Free heap: 84592 bytes
+[ESP] RAM 82kB free  CPU 160MHz
+[BTN] Page -> 1
+[BTN] Page -> 2
+[PC] fetch error: -203
+[ESP] RAM 82kB free  CPU 160MHz
+[BTN] Page -> 3
+[BTN] Page -> 4
+[BTN] Page -> 5
+[PC] fetch error: -203
+[ESP] RAM 82kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 82kB free  CPU 160MHz
+[BTN] Page -> 0
+[PC] fetch error: -203
+[ESP] RAM 82kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 82kB free  CPU 160MHz
+[BTN] Page -> 1
+[BTN] Page -> 2
+[BTN] Page -> 3
+[BTN] Page -> 4
+[PC] fetch error: -203
+[MEM] Free heap: 84400 bytes
+[BTN] Page -> 5
+[ESP] RAM 82kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 82kB free  CPU 160MHz
