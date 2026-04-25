@@ -20,7 +20,11 @@ DEFAULT_CONFIG = {
         "city": "Bucharest",
         "country": "RO",
         "refresh_ms": 600_000,
+        "retry_ms": 30_000,
+        "offline_retry_ms": 5_000,
         "stale_ms": 1_800_000,
+        "startup_retries": 3,
+        "startup_retry_ms": 5_000,
     },
     "time": {
         "ntp_server": "pool.ntp.org",

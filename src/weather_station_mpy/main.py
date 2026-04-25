@@ -96,33 +96,52 @@ async def weather_task(state, weather_svc, cfg):
         return
 
     refresh_ms = int(cfg["weather"].get("refresh_ms", 600_000))
+    retry_ms = int(cfg["weather"].get("retry_ms", 30_000))
+    offline_retry_ms = int(cfg["weather"].get("offline_retry_ms", 5_000))
+
+    # If startup bootstrap already seeded weather, defer the first periodic
+    # fetch to avoid a back-to-back HTTP+parse that exhausts fragmented heap.
+    if state.last_weather_fetch_ms:
+        print("[OWM] bootstrap data present, deferring first fetch by refresh_ms")
+        await asyncio.sleep_ms(refresh_ms)
 
     while True:
-        if state.wifi_online:
-            try:
-                weather = weather_svc.fetch_current()
-                await asyncio.sleep_ms(0)  # yield between blocking HTTP calls
-                forecast = weather_svc.fetch_forecast()
-                gc.collect()  # free parsed JSON payloads
+        if not state.wifi_online:
+            await asyncio.sleep_ms(offline_retry_ms)
+            continue
 
-                state.weather = weather
-                state.forecast = forecast
-                state.weather_dirty = True
-                state.forecast_dirty = True
-                state.status_dirty = True
-                state.last_weather_fetch_ms = weather["fetched_ms"]
-                state.last_forecast_fetch_ms = ticks_ms()
+        try:
+            weather = weather_svc.fetch_current()
+            gc.collect()  # free parsed JSON payloads
 
-                print(
-                    "[OWM] %.1fC %s Hum:%d%%"
-                    % (
-                        state.weather["temp_c"],
-                        state.weather["condition"],
-                        state.weather["humidity"],
-                    )
+            state.weather = weather
+            state.weather_dirty = True
+            state.status_dirty = True
+            state.last_weather_fetch_ms = weather["fetched_ms"]
+
+            print(
+                "[OWM] %.1fC %s Hum:%d%%"
+                % (
+                    state.weather["temp_c"],
+                    state.weather["condition"],
+                    state.weather["humidity"],
                 )
-            except (OSError, ValueError, RuntimeError) as exc:
-                print("[OWM] fetch error: %s" % exc)
+            )
+        except (OSError, ValueError, RuntimeError) as exc:
+            print("[OWM] fetch error: %s" % exc)
+            await asyncio.sleep_ms(retry_ms)
+            continue
+
+        await asyncio.sleep_ms(0)  # yield between blocking HTTP calls
+
+        try:
+            forecast = weather_svc.fetch_forecast()
+            gc.collect()  # free parsed JSON payloads
+            state.forecast = forecast
+            state.forecast_dirty = True
+            state.last_forecast_fetch_ms = ticks_ms()
+        except (OSError, ValueError, RuntimeError) as exc:
+            print("[OWM] forecast error: %s" % exc)
 
         await asyncio.sleep_ms(refresh_ms)
 
@@ -322,6 +341,39 @@ async def app_main():
     online = await wifi_svc.ensure_connected()
     synced = await time_svc.sync_ntp() if online else False
 
+    # --- Startup weather bootstrap (before display init to avoid -202/-203) ---
+    weather_svc = WeatherService(cfg)
+    startup_weather = None
+    startup_forecast = None
+
+    if online and bool(cfg["weather"].get("enabled", True)):
+        bootstrap_tries = int(cfg["weather"].get("startup_retries", 3))
+        bootstrap_delay_ms = int(cfg["weather"].get("startup_retry_ms", 5_000))
+
+        for attempt in range(bootstrap_tries):
+            print("[OWM] startup fetch attempt %d/%d" % (attempt + 1, bootstrap_tries))
+            try:
+                startup_weather = weather_svc.fetch_current()
+                gc.collect()
+                print(
+                    "[OWM] startup fetch OK: %.1fC %s"
+                    % (startup_weather["temp_c"], startup_weather["condition"])
+                )
+                break
+            except (OSError, ValueError, RuntimeError) as exc:
+                print("[OWM] startup fetch error: %s" % exc)
+                startup_weather = None
+                if attempt < bootstrap_tries - 1:
+                    await asyncio.sleep_ms(bootstrap_delay_ms)
+
+        if startup_weather is not None:
+            try:
+                startup_forecast = weather_svc.fetch_forecast()
+                gc.collect()
+                print("[OWM] startup forecast OK")
+            except (OSError, ValueError, RuntimeError) as exc:
+                print("[OWM] startup forecast error: %s" % exc)
+
     from ui.display_manager import DisplayManager
     display = DisplayManager()
     display.init()
@@ -332,7 +384,17 @@ async def app_main():
     state.wifi_online = online
     state.time_synced = synced
 
-    weather_svc = WeatherService(cfg)
+    if startup_weather is not None:
+        state.weather = startup_weather
+        state.weather_dirty = True
+        state.status_dirty = True
+        state.last_weather_fetch_ms = startup_weather["fetched_ms"]
+
+    if startup_forecast is not None:
+        state.forecast = startup_forecast
+        state.forecast_dirty = True
+        state.last_forecast_fetch_ms = ticks_ms()
+
     solar_svc = SolarService(cfg)
     metrics_svc = MetricsService(cfg)
 

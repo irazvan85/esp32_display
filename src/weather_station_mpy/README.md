@@ -111,6 +111,28 @@ On this board/firmware, importing `ui.display_manager` before the initial WiFi c
 - **No in-call fallback retry** — if that attempt fails, `ensure_connected()` returns offline without a second `connect()` in the same call.
 - **Failure cleanup is STA-cycle only** — after a failed attempt, cleanup uses STA cycling only for `STAT_CONNECTING` or terminal error statuses (`200`-`204`); no `disconnect()`-based cleanup.
 
+### [OWM] Weather retrieval behavior (runtime)
+
+When `[WiFi]` is connected, the first `[OWM]` fetch can still fail transiently (for example, AP settle time or upstream jitter right after reconnect). The weather task now uses three separate cadences:
+
+- After `[WiFi]` connects during boot, the app performs a startup `[OWM]` bootstrap before display init.
+- Startup bootstrap fetches current weather first; forecast is best-effort and does not block current weather display.
+- `weather.startup_retries` (default `3`) controls bootstrap retry attempts for current weather.
+- `weather.startup_retry_ms` (default `5000`) controls delay between bootstrap retries.
+- If bootstrap weather data exists, `weather_task` defers its first periodic fetch by `weather.refresh_ms` to avoid immediate back-to-back memory pressure.
+
+- `weather.refresh_ms` (default `600000`) is the normal success cadence.
+- `weather.retry_ms` (default `30000`) is a fast retry cadence when current weather fetch fails while WiFi is online.
+- `weather.offline_retry_ms` (default `5000`) is the short polling cadence while WiFi is offline.
+
+Current weather and forecast are fetched in separate steps. If current weather succeeds but forecast fails, page weather values still update and render; forecast data is retried on the next weather cycle.
+
+Practical guidance:
+
+- Keep `retry_ms` significantly lower than `refresh_ms` so transient online `[OWM]` failures recover quickly.
+- Use `offline_retry_ms` to control how aggressively weather polling resumes after `[WiFi]` reconnect.
+- In serial logs, expect `[OWM] fetch error: ...` for current failures and `[OWM] forecast error: ...` for forecast-only failures.
+
 ## PC metrics endpoint (Page 5)
 
 The ESP32 fetches PC metrics over LAN HTTP every 10 seconds (configurable).

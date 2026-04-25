@@ -1,0 +1,63 @@
+[0.0s] ets Jun  8 2016 00:22:57
+[0.0s] rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+[0.0s] configsip: 0, SPIWP:0xee
+[0.0s] clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+[0.0s] mode:DIO, clock div:2
+[0.0s] load:0x3fff0030,len:4200
+[0.0s] load:0x40078000,len:15236
+[0.0s] load:0x40080400,len:3332
+[0.0s] entry 0x400805a8
+[0.8s] [BOOT] weather_station_mpy boot.py
+[1.2s] [BOOT] WiFi DMA pool reserved (clean state)
+[1.2s] [BOOT] SPI2 stale state cleared
+[2.4s] ================================================
+[2.4s] Retro Weather Clock MicroPython
+[2.4s] ================================================
+[2.4s] [WiFi] prealloc status: active
+[2.4s] [WiFi] Connecting to IOT
+[3.5s] [WiFi] status=1001
+[7.6s] [WiFi] Connected, IP: 192.168.1.26
+[7.7s] [NTP] Time synced (UTC): 20:07:08
+[7.7s] [OWM] startup fetch attempt 1/3
+[8.1s] [OWM] startup fetch OK: 12.1C Clear
+[8.8s] [OWM] startup forecast OK
+[10.6s] [DISP] ST7789 initialized (improved UI)
+[10.7s] [OWM] bootstrap data present, deferring first fetch by refresh_ms
+[10.7s] [Solar] Disabled in config
+[10.7s] [PC] fetch error: [Errno 104] ECONNRESET
+[11.2s] [MEM] Free heap: 80832 bytes
+[11.3s] [ESP] RAM 78kB free  CPU 160MHz
+[20.7s] [PC] fetch error: [Errno 104] ECONNRESET
+[21.4s] [ESP] RAM 78kB free  CPU 160MHz
+[30.8s] [PC] fetch error: [Errno 104] ECONNRESET
+[31.6s] [ESP] RAM 78kB free  CPU 160MHz
+[40.8s] [PC] fetch error: [Errno 104] ECONNRESET
+[41.7s] [ESP] RAM 78kB free  CPU 160MHz
+[50.8s] [PC] fetch error: [Errno 104] ECONNRESET
+[51.8s] [ESP] RAM 78kB free  CPU 160MHz
+[60.8s] [PC] fetch error: [Errno 104] ECONNRESET
+[61.9s] [ESP] RAM 78kB free  CPU 160MHz
+[70.9s] [PC] fetch error: [Errno 104] ECONNRESET
+[71.2s] [MEM] Free heap: 80512 bytes
+[72.0s] [ESP] RAM 78kB free  CPU 160MHz
+[80.9s] [PC] fetch error: [Errno 104] ECONNRESET
+[82.1s] [ESP] RAM 78kB free  CPU 160MHz
+[90.9s] [PC] fetch error: [Errno 104] ECONNRESET
+[92.3s] [ESP] RAM 78kB free  CPU 160MHz
+[100.9s] [PC] fetch error: [Errno 104] ECONNRESET
+[102.4s] [ESP] RAM 78kB free  CPU 160MHz
+[110.9s] [PC] fetch error: [Errno 104] ECONNRESET
+[112.5s] [ESP] RAM 78kB free  CPU 160MHz
+[121.0s] [PC] fetch error: [Errno 104] ECONNRESET
+[122.6s] [ESP] RAM 78kB free  CPU 160MHz
+[131.0s] [PC] fetch error: [Errno 104] ECONNRESET
+[131.3s] [MEM] Free heap: 80512 bytes
+[132.7s] [ESP] RAM 78kB free  CPU 160MHz
+[141.0s] [PC] fetch error: [Errno 104] ECONNRESET
+[142.8s] [ESP] RAM 78kB free  CPU 160MHz
+[151.0s] [PC] fetch error: [Errno 104] ECONNRESET
+[152.9s] [ESP] RAM 78kB free  CPU 160MHz
+[161.0s] [PC] fetch error: [Errno 104] ECONNRESET
+[163.0s] [ESP] RAM 78kB free  CPU 160MHz
+[171.1s] [PC] fetch error: [Errno 104] ECONNRESET
+[173.2s] [ESP] RAM 78kB free  CPU 160MHz

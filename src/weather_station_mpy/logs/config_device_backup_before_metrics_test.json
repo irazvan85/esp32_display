@@ -1,0 +1,43 @@
+{
+  "wifi": {
+    "ssid": "IOT",
+    "password": "Zaq!12345",
+    "prefer_bssid_scan": false,
+    "min_heap_for_scan_bytes": 98000,
+    "bssid": "",
+    "connect_timeout_ms": 20000,
+    "check_interval_ms": 30000
+  },
+  "weather": {
+    "enabled": true,
+    "api_key": "ba8120071e9709b862c98ff82e97a5b5",
+    "city": "Timisoara",
+    "country": "RO",
+    "refresh_ms": 600000,
+    "stale_ms": 1800000
+  },
+  "time": {
+    "ntp_server": "pool.ntp.org",
+    "clock_refresh_ms": 1000,
+    "tz_mode": "romania_eet_eest"
+  },
+  "solar": {
+    "enabled": false,
+    "app_id": "your_app_id",
+    "app_secret": "your_app_secret",
+    "email": "your@email.com",
+    "pass_sha256": "sha256_hex_of_your_password",
+    "station_id": 64729306,
+    "refresh_ms": 300000
+  },
+  "metrics": {
+    "enabled": true,
+    "pc_url": "http://192.168.1.22:8765/api/system/metrics",
+    "refresh_ms": 10000,
+    "stale_ms": 120000,
+    "timeout_ms": 3000
+  },
+  "display": {
+    "backlight_on": true
+  }
+}
