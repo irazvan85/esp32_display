@@ -1,0 +1,29 @@
+
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] status=1000
+[WiFi] Connected, IP: 192.168.1.26
+[NTP] Time synced (UTC): 14:11:12
+[OWM] startup fetch attempt 1/3
+[OWM] startup fetch OK: 21.1C Clear
+[OWM] startup forecast OK
+Traceback (most recent call last):
+  File "main.py", line 635, in <module>
+  File "asyncio/core.py", line 1, in run
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "main.py", line 585, in app_main
+MemoryError: memory allocation failed, allocating 497 bytes
+MicroPython v1.28.0 on 2026-04-06; Generic ESP32 module with ESP32
+Type "help()" for more information.
+>>> 

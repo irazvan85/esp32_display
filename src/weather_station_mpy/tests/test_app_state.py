@@ -30,6 +30,9 @@ class TestAppStateInit(unittest.TestCase):
         self.assertFalse(self.state.wifi_online)
         self.assertFalse(self.state.time_synced)
 
+    def test_initial_weather_error_empty(self):
+        self.assertEqual(self.state.weather_error, "")
+
     def test_initial_weather_structure(self):
         w = self.state.weather
         self.assertFalse(w["valid"])

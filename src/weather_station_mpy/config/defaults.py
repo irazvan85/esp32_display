@@ -50,6 +50,14 @@ DEFAULT_CONFIG = {
         "stale_ms": 120_000,
         "timeout_ms": 3_000,
     },
+    "ui": {
+        "theme": "retro",
+        "enabled_pages": [0, 1, 2, 3, 4, 5],
+    },
+    "web": {
+        "enabled": True,
+        "port": 80,
+    },
     "display": {
         "backlight_on": True,
     },

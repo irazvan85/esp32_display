@@ -4,6 +4,8 @@
 class AppState:
     def __init__(self):
         self.page = 0
+        self.enabled_pages = [0, 1, 2, 3, 4, 5]
+        self.theme_name = "retro"
         self.page_dirty = True
         self.status_dirty = True
         self.weather_dirty = True
@@ -13,6 +15,8 @@ class AppState:
 
         self.wifi_online = False
         self.time_synced = False
+        self.web_ready = False
+        self.weather_error = ""
 
         self.last_weather_fetch_ms = 0
         self.last_forecast_fetch_ms = 0

@@ -1,0 +1,36 @@
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] Connected, IP: 192.168.1.26
+[NTP] Time synced (UTC): 14:05:21
+[OWM] startup fetch attempt 1/3
+[OWM] startup fetch OK: 21.1C Clear
+[OWM] startup forecast OK
+Traceback (most recent call last):
+  File "main.py", line 607, in <module>
+  File "asyncio/core.py", line 1, in run
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "main.py", line 556, in app_main
+MemoryError: memory allocation failed, allocating 3112 bytes
+MicroPython v1.28.0 on 2026-04-06; Generic ESP32 module with ESP32
+Type "help()" for more information.

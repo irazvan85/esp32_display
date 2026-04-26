@@ -1,0 +1,109 @@
+[WiFi] Connected, IP: 192.168.1.26
+[NTP] Time synced (UTC): 16:59:16
+[OWM] startup bootstrap skipped (strict memory guard)
+[WEB] Pre-bound port 80
+[DISP] ST7789 initialized (improved UI)
+[WEB] Config UI: http://192.168.1.26:80/
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[MEM] Free heap: 71088 bytes
+[ESP] RAM 69kB free  CPU 160MHz
+[OWM] fetch error: -202
+[Solar] Disabled in config
+[PC] fetch error: -203
+[PC] backoff 20s after 1 consecutive failures
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[PC] fetch error: -203
+[PC] backoff 40s after 2 consecutive failures
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[OWM] fetch error: -202
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[MEM] Free heap: 70080 bytes
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[PC] fetch error: -203
+[PC] backoff 80s after 3 consecutive failures
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[OWM] fetch error: -202
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT
+[WEB] accept error: [Errno 116] ETIMEDOUT

@@ -1,0 +1,26 @@
+Traceback (most recent call last):
+  File "main.py", line 652, in <module>
+  File "asyncio/core.py", line 1, in run
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "asyncio/core.py", line 1, in wait_io_event
+KeyboardInterrupt: 
+MicroPython v1.28.0 on 2026-04-06; Generic ESP32 module with ESP32
+Type "help()" for more information.
+>>> 
+>>> 
+>>> 
+raw REPL; CTRL-B to exit
+>raw REPL; CTRL-B to exit
+>OK
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+raw REPL; CTRL-B to exit
+>OK
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+raw REPL; CTRL-B to exit
+>

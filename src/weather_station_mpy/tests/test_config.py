@@ -107,6 +107,7 @@ class TestValidate(unittest.TestCase):
             "weather": {"api_key": "abc123key", "city": "London", "country": "GB"},
             "solar": {"enabled": False},
             "metrics": {"enabled": False},
+            "ui": {"theme": "retro", "enabled_pages": [0, 1, 2, 3, 4, 5]},
         }
 
     def test_valid_config_passes(self):
@@ -154,6 +155,41 @@ class TestValidate(unittest.TestCase):
             "station_id": 12345,
         }
         _validate(cfg)  # should not raise
+
+    def test_invalid_theme_raises(self):
+        cfg = self._valid_cfg()
+        cfg["ui"] = {"theme": "nope", "enabled_pages": [0, 1, 2]}
+        with self.assertRaises(ConfigNotReadyError):
+            _validate(cfg)
+
+    def test_non_list_enabled_pages_raises(self):
+        cfg = self._valid_cfg()
+        cfg["ui"] = {"theme": "retro", "enabled_pages": "0,1,2"}
+        with self.assertRaises(ConfigNotReadyError):
+            _validate(cfg)
+
+    def test_empty_enabled_pages_raises(self):
+        cfg = self._valid_cfg()
+        cfg["ui"] = {"theme": "retro", "enabled_pages": []}
+        with self.assertRaises(ConfigNotReadyError):
+            _validate(cfg)
+
+    def test_page_out_of_range_raises(self):
+        cfg = self._valid_cfg()
+        cfg["ui"] = {"theme": "retro", "enabled_pages": [0, 6]}
+        with self.assertRaises(ConfigNotReadyError):
+            _validate(cfg)
+
+    def test_non_int_page_raises(self):
+        cfg = self._valid_cfg()
+        cfg["ui"] = {"theme": "retro", "enabled_pages": [0, "1"]}
+        with self.assertRaises(ConfigNotReadyError):
+            _validate(cfg)
+
+    def test_valid_ui_config_passes(self):
+        cfg = self._valid_cfg()
+        cfg["ui"] = {"theme": "light", "enabled_pages": [0, 2, 4]}
+        _validate(cfg)
 
 
 if __name__ == "__main__":

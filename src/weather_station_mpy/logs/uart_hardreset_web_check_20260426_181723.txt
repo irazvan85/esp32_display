@@ -1,0 +1,38 @@
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] Connected, IP: 192.168.1.26
+[NTP] Time synced (UTC): 15:17:35
+[OWM] startup bootstrap skipped (strict memory guard)
+[DISP] ST7789 initialized (improved UI)
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[MEM] Free heap: 72816 bytes
+[ESP] RAM 71kB free  CPU 160MHz
+[Solar] Disabled in config
+[WEB] bind/listen error: -203 (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: -203 (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: -203 (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: -203 (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: -203 (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[MEM] Free heap: 71360 bytes
+[WEB] bind/listen error: -203 (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[OWM] fetch error: -203
+[PC] fetch error: -203
+[PC] backoff 20s after 1 consecutive failures
+[WEB] bind/listen error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz

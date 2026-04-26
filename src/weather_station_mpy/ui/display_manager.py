@@ -335,9 +335,17 @@ class DisplayManager:
 
                 self._draw_trend_graph(state.weather_trend)
             else:
-                msg = ("No Network" if not state.wifi_online
-                       else ("Syncing..." if not state.time_synced
-                             else "Fetching wx..."))
+                if not state.wifi_online:
+                    msg = "No Network"
+                elif not state.time_synced:
+                    msg = "Syncing..."
+                elif state.weather_error:
+                    msg = "OWM err %s" % state.weather_error
+                    max_chars = (board.DISPLAY_W - 4) // 8
+                    if len(msg) > max_chars:
+                        msg = msg[:max_chars]
+                else:
+                    msg = "Fetching wx..."
                 self._text_m(msg, 4, _Z_WX + 14, board.COL_STATUS, board.COL_BG)
                 self._draw_trend_graph([])
 
@@ -1002,47 +1010,55 @@ class DisplayManager:
         if tft is None:
             return
         text = str(text)
-        n = len(text)
-        if n == 0:
-            return
-        src_w = n * 8
-        src_h = 8
-        bpr = (src_w + 7) // 8
-        buf = bytearray(bpr * src_h)
-        fb = framebuf.FrameBuffer(buf, src_w, src_h, framebuf.MONO_HLSB)
-        fb.fill(0)
-        fb.text(text, 0, 0, 1)
-        dst_w = n * _CHAR_W3
-        dst_h = _CHAR_H3
-        if x >= board.DISPLAY_W or y >= board.DISPLAY_H:
-            return
-        draw_w = min(dst_w, board.DISPLAY_W - x)
-        draw_h = min(dst_h, board.DISPLAY_H - y)
-        if draw_w <= 0 or draw_h <= 0:
-            return
         fg_hi = (color >> 8) & 0xFF
         fg_lo = color & 0xFF
         bg_hi = (bg >> 8) & 0xFF
         bg_lo = bg & 0xFF
-        tft._set_window(x, y, x + draw_w - 1, y + draw_h - 1)
-        pixels = bytearray(draw_w * draw_h * 2)
-        pi = 0
-        for dr in range(draw_h):
-            src_row = dr // 3
-            for dc in range(draw_w):
-                src_col = dc // 3
-                bit = (buf[src_row * bpr + src_col // 8] >> (7 - src_col % 8)) & 1 if src_col < src_w else 0
-                if bit:
-                    pixels[pi] = fg_hi
-                    pixels[pi + 1] = fg_lo
-                else:
-                    pixels[pi] = bg_hi
-                    pixels[pi + 1] = bg_lo
-                pi += 2
-        tft._dc(1)
-        tft._cs(0)
-        tft.spi.write(pixels)
-        tft._cs(1)
+
+        if x >= board.DISPLAY_W or y >= board.DISPLAY_H:
+            return
+
+        src_w = 8
+        src_h = 8
+        bpr = 1
+        draw_h = min(_CHAR_H3, board.DISPLAY_H - y)
+        if draw_h <= 0:
+            return
+
+        for idx, ch in enumerate(text):
+            char_x = x + idx * _CHAR_W3
+            if char_x >= board.DISPLAY_W:
+                break
+
+            draw_w = min(_CHAR_W3, board.DISPLAY_W - char_x)
+            if draw_w <= 0:
+                continue
+
+            buf = bytearray(bpr * src_h)
+            fb = framebuf.FrameBuffer(buf, src_w, src_h, framebuf.MONO_HLSB)
+            fb.fill(0)
+            fb.text(ch, 0, 0, 1)
+
+            pixels = bytearray(draw_w * draw_h * 2)
+            pi = 0
+            for dr in range(draw_h):
+                src_row = dr // 3
+                for dc in range(draw_w):
+                    src_col = dc // 3
+                    bit = (buf[src_row * bpr + src_col // 8] >> (7 - src_col % 8)) & 1
+                    if bit:
+                        pixels[pi] = fg_hi
+                        pixels[pi + 1] = fg_lo
+                    else:
+                        pixels[pi] = bg_hi
+                        pixels[pi + 1] = bg_lo
+                    pi += 2
+
+            tft._set_window(char_x, y, char_x + draw_w - 1, y + draw_h - 1)
+            tft._dc(1)
+            tft._cs(0)
+            tft.spi.write(pixels)
+            tft._cs(1)
 
     # ── Low-level helpers ─────────────────────────────────────────────────────
 

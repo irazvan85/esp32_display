@@ -21,6 +21,7 @@ Initial implementation for migrating the existing Arduino weather station to Mic
   - page 2: 5-day rows
   - page 3: solar summary
   - page 4: PC metrics (CPU/RAM/disk/temp/uptime)
+- Runtime web configuration interface over WiFi IP for theme, visible pages, and metrics URL.
 
 ## Current migration status
 
@@ -34,7 +35,9 @@ This is phase 1/2 implementation. It establishes architecture and hardware/runti
 - `app_state.py`: shared mutable runtime state
 - `config/`: defaults, validation, and example config
 - `services/`: Wi-Fi, time, weather API, SolarMan API, PC metrics API client
+- `services/web_config_service.py`: lightweight HTTP config UI service
 - `ui/display_manager.py`: display init + page rendering
+- `ui/theme.py`: runtime theme palette application
 
 ## Required MicroPython modules
 
@@ -94,7 +97,23 @@ mpremote connect COM13 fs cat :/config.json
 
 - `solar.enabled` defaults to `false` to avoid blocking startup for users without SolarMan credentials.
 - `metrics.enabled` defaults to `false`; enable only when your local PC metrics endpoint is running.
+- `ui.theme` defaults to `retro`.
+- `ui.enabled_pages` defaults to all pages `[0,1,2,3,4,5]` and is validated as a non-empty integer list within range.
+- Config validation checks placeholder values and required fields before normal startup.
 - Keep `config.json` out of git; this repository ignores `src/weather_station_mpy/config.json`.
+
+### Config key reference (selected keys)
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `web.enabled` | `true` | Enable HTTP config UI |
+| `web.port` | `80` | HTTP server port |
+| `ui.theme` | `"retro"` | Display color theme (`retro`, `light`, `high_contrast`) |
+| `ui.enabled_pages` | `[0,1,2,3,4,5]` | Pages to cycle through via button |
+| `solar.enabled` | `false` | Enable SolarMan solar data polling |
+| `metrics.enabled` | `false` | Enable PC metrics polling |
+| `wifi.startup_retries` | `4` | Boot-time WiFi connect attempts |
+| `wifi.startup_retry_ms` | `2000` | Delay (ms) between boot WiFi retries |
 
 ## WiFi behavior
 
@@ -119,12 +138,37 @@ On this board/firmware, importing `ui.display_manager` before the initial WiFi c
 - `wifi_task` uses `wifi.offline_retry_ms` (default `5000`) while offline.
 - Online WiFi health cadence remains `wifi.check_interval_ms`.
 
+## Runtime Web Configuration
+
+The device exposes a lightweight HTTP config UI over your LAN when WiFi is connected.
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `http://<device-ip>/` | GET | Load current config form |
+| `http://<device-ip>/save` | POST | Submit updated config |
+
+**How to access**: Connect your PC or phone to the same LAN. Open a browser at the IP shown on the Status page (page 0).
+
+**Features available via the web UI**:
+- Theme selection: `retro`, `light`, `high_contrast`
+- Enable/disable individual display pages (IDs `0`–`5`)
+- Set the PC metrics source URL (`metrics.pc_url`)
+
+**Config persistence**: Changes are written to `config.json` on the device immediately and take effect on the running UI without a reboot.
+
+> Requires WiFi connected; no AP/captive-portal fallback in the current implementation.
+
+### Web socket pre-bind
+
+**Implementation note**: The web socket is pre-bound in `app_main` before any async tasks are created. This is required on ESP32 because the lwIP TCP PCB pool (≈5 slots) is exhausted by concurrent outbound weather/metrics HTTP connections, making `bind()` fail with ENOBUFS if attempted after tasks start.
+
 ### [UI] Post-startup menu input
 
 After startup completes, page cycling remains available even during background work.
 
 - Button IRQ queues press events immediately.
 - The button loop consumes queued presses with debounce before changing pages.
+- Button/menu handling remains active while web config services run so display pages remain navigable.
 
 ### [OWM] Weather retrieval behavior (runtime)
 
@@ -188,7 +232,7 @@ python .\solarmann\pc_metrics_api.py --host 0.0.0.0 --port 8765 --disk-path C:\
 }
 ```
 
-1. Deploy again and switch to page `[5/5]` using the hardware button.
+1. Deploy again and switch to page `[5/6]` using the hardware button.
 
 ## Memory management
 
@@ -199,6 +243,12 @@ The ESP32 has ~100–150 KB free heap after boot. After display init and the ini
 - Every task calls `gc.collect()` after **both** successful and failed service fetches.
 - `gc.collect()` releases parsed JSON payloads and closed socket buffers promptly rather than waiting for the next GC cycle.
 - Heap is not expected to trend downward in normal operation; a steady ~77 KB free is healthy.
+
+### [Display] Memory-safe large text rendering
+
+- `_text3x` renders per-character buffers instead of allocating one large frame buffer.
+- `render_task` catches `MemoryError`, logs the failure, runs `gc.collect()`, and skips the current frame so the app keeps running.
+- The prior render failure mode (`allocating 9216 bytes`) is mitigated by this approach.
 
 ### Metrics task backoff
 
@@ -223,9 +273,31 @@ Device tests in `tests/device/test_app.py` include:
 - **REQ-MEM-03** (`test_appstate_weather_trend_is_list`): `AppState.weather_trend` is an empty list at init.
 - **REQ-MEM-04** (`test_service_instantiation_no_leak`): instantiating all 5 services must not permanently consume >8 KB.
 
+## Requirement traceability (latest)
+
+- `REQ-WEB-01`: connect via WiFi IP to config UI.
+- `REQ-WEB-02`: configure visible pages and metrics source URL.
+- `REQ-WEB-03`: configure global theme across pages.
+- `REQ-ROB-01`: app survives display render memory pressure without reboot.
+
+## Troubleshooting
+
+**Weather page stuck on `Fetching wx...` / `OWM err -202`**: This indicates the ESP is associated to WiFi, but cannot reach the OpenWeatherMap endpoint from that SSID (DNS, route, or internet upstream issue). Verify that SSID has internet access, router DNS resolution is working, and the configured OWM URL is reachable from another client on the same SSID.
+
+**Web UI unreachable from PC**: If the ESP shows a WiFi IP and `[WEB] Config UI: http://<ip>:<port>/` in UART, but your PC cannot ARP/ping/reach that IP, this is typically AP/client isolation (or VLAN separation). Connect the PC to the same SSID/VLAN as the ESP, or disable client isolation on that SSID.
+
+**Repeated idle web `accept()` timeout logs**: In current firmware, idle socket `accept()` timeouts are treated as normal and suppressed. UART should not be flooded by timeout-only web accept errors after updating.
+
+**First-boot config warning / app halts**: Expected behaviour. The app auto-creates `config.json` from defaults and halts until all `your_*` / `changeme` placeholders are replaced. Read and edit the file with `mpremote connect COM13 fs cat :/config.json`, then reboot.
+
+**Solar page shows no data**: `solar.enabled` is `false` by default. Set it to `true` in `config.json` and supply valid SolarMan credentials.
+
+**PC metrics page shows stale/no data**: Verify the PC metrics API is running and reachable at the configured `metrics.pc_url`. Check UART for `[PC] fetch error` messages.
+
 ## Next implementation targets
 
 - Full icon primitives and geometry parity with Arduino page renderers.
 - Non-blocking HTTP strategy to reduce render jitter during API calls (deferred; requires urequests async support or custom socket layer).
 - Improved forecast memory profile (selective extraction and payload release — partial; gc.collect() after fetch is in place).
 - TLS hardening options for API requests where feasible on MicroPython.
+

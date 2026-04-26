@@ -1,0 +1,52 @@
+[BTN] Page -> 2
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[PC] fetch error: -203
+[PC] backoff 40s after 2 consecutive failures
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[OWM] fetch error: -203
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[OWM] fetch error: -203
+[PC] fetch error: -203
+[PC] backoff 80s after 3 consecutive failures
+[MEM] Free heap: 70144 bytes
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[OWM] fetch error: -203
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[OWM] fetch error: -203
+[MEM] Free heap: 70096 bytes
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[PC] fetch error: -203
+[PC] backoff 160s after 4 consecutive failures
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[OWM] fetch error: -203
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[OWM] fetch error: -203
+[MEM] Free heap: 70096 bytes
+[WEB] start_server error: -203 (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz

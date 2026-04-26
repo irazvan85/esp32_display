@@ -1,0 +1,34 @@
+[DISP] ST7789 initialized (improved UI)
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[MEM] Free heap: 78880 bytes
+[ESP] RAM 77kB free  CPU 160MHz
+[Solar] Disabled in config
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[MEM] Free heap: 71424 bytes
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 69kB free  CPU 160MHz
+[OWM] fetch error: -202
+[PC] fetch error: -203
+[PC] backoff 20s after 1 consecutive failures
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[PC] fetch error: -203
+[PC] backoff 40s after 2 consecutive failures
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[OWM] fetch error: -202
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz
+[WEB] bind/listen error: [Errno 105] ENOBUFS (retry in 10s)
+[ESP] RAM 68kB free  CPU 160MHz

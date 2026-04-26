@@ -101,6 +101,22 @@ def _validate(cfg):
         if metrics_url is None or _is_placeholder(metrics_url):
             raise ConfigNotReadyError("Missing or placeholder value: metrics.pc_url")
 
+    theme = _get_path(cfg, "ui.theme")
+    allowed_themes = ("retro", "light", "high_contrast")
+    if theme not in allowed_themes:
+        raise ConfigNotReadyError("Invalid ui.theme: %s" % theme)
+
+    enabled_pages = _get_path(cfg, "ui.enabled_pages")
+    if not isinstance(enabled_pages, list):
+        raise ConfigNotReadyError("ui.enabled_pages must be a list")
+    if not enabled_pages:
+        raise ConfigNotReadyError("ui.enabled_pages must not be empty")
+    for page in enabled_pages:
+        if not isinstance(page, int):
+            raise ConfigNotReadyError("ui.enabled_pages must contain ints")
+        if page < 0 or page > 5:
+            raise ConfigNotReadyError("ui.enabled_pages out of range: %s" % page)
+
 
 def write_default_config(path="config.json"):
     cfg = _clone(DEFAULT_CONFIG)
