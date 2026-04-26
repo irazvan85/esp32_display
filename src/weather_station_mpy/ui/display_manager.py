@@ -129,6 +129,9 @@ class DisplayManager:
 
         Pin(board.LCD_BLK, Pin.OUT).value(1)
 
+        import gc as _gc
+        _gc.collect()
+
         if st7789 is None:
             print("[DISP] st7789 module not found; running in headless mode")
             return

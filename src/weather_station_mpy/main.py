@@ -665,7 +665,38 @@ async def app_main():
     startup_trend = None
 
     if online and bool(cfg["weather"].get("enabled", True)):
-        print("[OWM] startup bootstrap skipped (strict memory guard)")
+        _boot_heap = gc.mem_free()
+        if _boot_heap < 70_000:
+            print("[OWM] startup bootstrap skipped (strict memory guard)")
+        else:
+            from services.weather_service import WeatherService as _BootWX
+            _wx = _BootWX(cfg)
+            for _attempt in range(3):
+                print("[OWM] startup fetch attempt %d/3" % (_attempt + 1))
+                try:
+                    startup_weather = _wx.fetch_current()
+                    gc.collect()
+                    print(
+                        "[OWM] startup fetch OK: %.1fC %s"
+                        % (startup_weather["temp_c"], startup_weather["condition"])
+                    )
+                    break
+                except Exception as _exc:
+                    print("[OWM] startup fetch error: %s" % _exc)
+                    gc.collect()
+            if startup_weather is not None:
+                _heap2 = gc.mem_free()
+                if _heap2 < 55_000:
+                    print("[OWM] startup forecast skipped (memory guard)")
+                else:
+                    try:
+                        startup_forecast, startup_trend = _wx.fetch_forecast_bundle()
+                        gc.collect()
+                    except Exception as _exc:
+                        print("[OWM] startup forecast error: %s" % _exc)
+                        gc.collect()
+            del _wx, _BootWX
+            gc.collect()
 
     # ---- Web socket pre-bind (provisioning window) -------------------------
     # Bind BEFORE any tasks start to avoid ENOBUFS from concurrent outbound

@@ -154,6 +154,18 @@ class WifiService:
             await asyncio.sleep_ms(250)
 
         if self._wlan.isconnected():
+            # Override DNS with reliable public resolver if explicitly configured.
+            # NOTE: wlan.ifconfig((ip,mask,gw,dns)) switches interface to static mode
+            # and can briefly drop the connection. Only apply if user explicitly sets
+            # wifi.dns in config. Default empty = rely on DHCP-assigned DNS.
+            _dns = self._cfg["wifi"].get("dns", "")
+            if _dns:
+                try:
+                    ip, mask, gw, _old_dns = self._wlan.ifconfig()
+                    self._wlan.ifconfig((ip, mask, gw, _dns))
+                    print("[WiFi] DNS set to %s" % _dns)
+                except Exception as _dns_err:
+                    print("[WiFi] DNS config failed (ignored): %s" % _dns_err)
             print("[WiFi] Connected, IP: %s" % self.ip())
             return True
 

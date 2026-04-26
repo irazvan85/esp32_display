@@ -129,7 +129,8 @@ def test_timeout_matching_variants_for_web_diag_logic():
     def _matches_timeout(exc):
         if len(exc.args) > 0 and exc.args[0] in (110, 116, "timed out"):
             return True
-        return "timed out" in str(exc).lower()
+        low = str(exc).lower()
+        return "timed out" in low or "etimedout" in low
 
     assert _matches_timeout(OSError(110, "ETIMEDOUT"))
     assert _matches_timeout(OSError(116, "ETIMEDOUT"))
