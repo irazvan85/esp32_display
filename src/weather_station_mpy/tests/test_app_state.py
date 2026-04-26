@@ -37,6 +37,10 @@ class TestAppStateInit(unittest.TestCase):
         self.assertIn("condition", w)
         self.assertIn("condition_id", w)
 
+    def test_initial_weather_trend_empty_list(self):
+        self.assertIsInstance(self.state.weather_trend, list)
+        self.assertEqual(self.state.weather_trend, [])
+
     def test_initial_metrics_structure(self):
         m = self.state.metrics
         self.assertFalse(m["valid"])

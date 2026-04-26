@@ -33,6 +33,7 @@ class AppState:
         }
 
         self.forecast = []
+        self.weather_trend = []
 
         self.solar = {
             "valid": False,

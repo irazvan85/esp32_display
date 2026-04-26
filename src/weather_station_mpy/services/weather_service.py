@@ -59,6 +59,10 @@ class WeatherService:
                 response.close()
 
     def fetch_forecast(self):
+        daily, _trend = self.fetch_forecast_bundle()
+        return daily
+
+    def fetch_forecast_bundle(self):
         if requests is None:
             raise RuntimeError("urequests is not installed")
 
@@ -81,10 +85,50 @@ class WeatherService:
 
             payload = response.json()
             entries = payload.get("list", [])
-            return self._aggregate(entries)
+            daily = self._aggregate(entries)
+            trend = self._extract_today_trend(entries)
+            return daily, trend
         finally:
             if response is not None:
                 response.close()
+
+    def _extract_today_trend(self, entries):
+        trend = []
+        first_date = None
+
+        for entry in entries:
+            dt_txt = entry.get("dt_txt", "")
+            if len(dt_txt) < 13:
+                continue
+
+            date_key = dt_txt[0:10]
+            if first_date is None:
+                first_date = date_key
+            if date_key != first_date:
+                continue
+
+            hour_txt = dt_txt[11:13]
+            try:
+                hour = int(hour_txt)
+            except ValueError:
+                continue
+
+            main = entry.get("main", {})
+            rain = entry.get("rain", {})
+            snow = entry.get("snow", {})
+            precip_mm = float(rain.get("3h", 0.0)) + float(snow.get("3h", 0.0))
+
+            trend.append(
+                {
+                    "hour": hour,
+                    "temp_c": float(main.get("temp", 0.0)),
+                    "precip_mm": precip_mm,
+                }
+            )
+            if len(trend) >= 8:
+                break
+
+        return trend
 
     def _aggregate(self, entries):
         out = []

@@ -1,0 +1,57 @@
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] Connected, IP: 192.168.1.26
+[NTP] Time synced (UTC): 12:05:33
+[OWM] startup fetch attempt 1/3
+[OWM] startup fetch OK: 22.1C Clear
+[OWM] startup forecast OK
+[DISP] ST7789 initialized (improved UI)
+[OWM] bootstrap data present, deferring first fetch by refresh_ms
+[Solar] Disabled in config
+[PC] fetch error: -203
+[MEM] Free heap: 79736 bytes
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[MEM] Free heap: 79560 bytes
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[MEM] Free heap: 79560 bytes
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz

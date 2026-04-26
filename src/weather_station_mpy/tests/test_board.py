@@ -50,6 +50,7 @@ class TestBoardConstants(unittest.TestCase):
             board.COL_BG, board.COL_CLOCK, board.COL_DATE, board.COL_TEMP,
             board.COL_STATUS, board.COL_ONLINE, board.COL_OFFLINE,
             board.COL_TITLE, board.COL_METRIC_GPU,
+            board.COL_TREND_TEMP, board.COL_TREND_PRECIP, board.COL_TREND_AXIS,
         ]
         for c in colors:
             self.assertGreaterEqual(c, 0)

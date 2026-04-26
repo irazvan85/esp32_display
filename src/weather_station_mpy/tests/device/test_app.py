@@ -151,16 +151,104 @@ def test_compat_mem_helpers():
     assert_ge(mem_alloc(), 0, "mem_alloc() negative on device")
 
 
+def test_heap_stable_after_gc():
+    """REQ-MEM-01: heap must not collapse under repeated gc.collect() calls."""
+    import gc
+    readings = []
+    for _ in range(5):
+        gc.collect()
+        readings.append(gc.mem_free())
+    first = readings[0]
+    last  = readings[-1]
+    print("[TEST:info] heap before=%dB after=%dB" % (first, last))
+    assert_ge(last, 20 * 1024, "heap after GC below 20 KB: %d B" % last)
+    # Final value must not be more than 30% lower than the first
+    assert_ge(last, int(first * 0.70),
+              "heap collapsed: first=%dB last=%dB" % (first, last))
+
+
+def test_metrics_service_error_no_leak():
+    """REQ-MEM-02: MetricsService must not leak memory on unreachable host."""
+    import gc
+    from services.metrics_service import MetricsService
+
+    fake_cfg = {
+        "metrics": {
+            "enabled": True,
+            "pc_url": "http://127.0.0.1:19999/api/system/metrics",
+            "timeout_ms": 2000,
+            "refresh_ms": 10000,
+        }
+    }
+    svc = MetricsService(fake_cfg)
+
+    gc.collect()
+    before = gc.mem_free()
+    try:
+        svc.fetch()
+    except Exception:
+        pass
+    gc.collect()
+    after = gc.mem_free()
+    print("[TEST:info] heap before=%d after=%d delta=%d" % (before, after, after - before))
+    assert_ge(after, before - 4096,
+              "heap after error fetch too low: before=%d after=%d" % (before, after))
+
+
+def test_appstate_weather_trend_is_list():
+    """REQ-MEM-03: AppState.weather_trend must be an empty list at init."""
+    from app_state import AppState
+    s = AppState()
+    assert_true(isinstance(s.weather_trend, list),
+                "weather_trend is not a list: %r" % type(s.weather_trend))
+    assert_equal(len(s.weather_trend), 0,
+                 "weather_trend must be empty at init, len=%d" % len(s.weather_trend))
+
+
+def test_service_instantiation_no_leak():
+    """REQ-MEM-04: instantiating all 5 services must not permanently consume >8 KB."""
+    import gc
+    from config.store import load_config
+    from services.wifi_service import WifiService
+    from services.time_service import TimeService
+    from services.weather_service import WeatherService
+    from services.solar_service import SolarService
+    from services.metrics_service import MetricsService
+
+    gc.collect()
+    before = gc.mem_free()
+
+    cfg      = load_config("config.json")
+    wifi_svc = WifiService(cfg)
+    time_svc = TimeService(cfg)
+    wx_svc   = WeatherService(cfg)
+    sol_svc  = SolarService(cfg)
+    met_svc  = MetricsService(cfg)
+
+    gc.collect()
+    after = gc.mem_free()
+    print("[TEST:info] heap before=%d after=%d" % (before, after))
+    assert_ge(after, before - 8192,
+              "service instantiation leaked >8 KB: before=%d after=%d" % (before, after))
+
+    del wifi_svc, time_svc, wx_svc, sol_svc, met_svc, cfg
+    gc.collect()
+
+
 # ── register and run ──────────────────────────────────────────────────────────
 
 print("[TEST] === App Tests ===")
-run("config_loads",             test_config_loads)
-run("config_no_placeholders",   test_config_no_placeholders)
-run("appstate_init",            test_appstate_init)
-run("mark_all_dirty",           test_mark_all_dirty)
-run("esp_status_collect",       test_esp_status_collect)
-run("services_instantiate",     test_services_instantiate)
-run("display_manager_init",     test_display_manager_init)
-run("page_count",               test_page_count)
-run("compat_mem_helpers",       test_compat_mem_helpers)
+run("config_loads",                    test_config_loads)
+run("config_no_placeholders",          test_config_no_placeholders)
+run("appstate_init",                   test_appstate_init)
+run("mark_all_dirty",                  test_mark_all_dirty)
+run("esp_status_collect",              test_esp_status_collect)
+run("services_instantiate",            test_services_instantiate)
+run("display_manager_init",            test_display_manager_init)
+run("page_count",                      test_page_count)
+run("compat_mem_helpers",              test_compat_mem_helpers)
+run("heap_stable_after_gc",            test_heap_stable_after_gc)
+run("metrics_service_error_no_leak",   test_metrics_service_error_no_leak)
+run("appstate_weather_trend_is_list",  test_appstate_weather_trend_is_list)
+run("service_instantiation_no_leak",   test_service_instantiation_no_leak)
 summary()

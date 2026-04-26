@@ -13,6 +13,9 @@ DEFAULT_CONFIG = {
         "bssid": "",
         "connect_timeout_ms": 10_000,
         "check_interval_ms": 30_000,
+        "startup_retries": 4,
+        "startup_retry_ms": 2_000,
+        "offline_retry_ms": 5_000,
     },
     "weather": {
         "enabled": True,

@@ -137,6 +137,115 @@ class TestWeatherServiceFetchCurrent(unittest.TestCase):
         finally:
             ws_module.requests = original_requests
 
+
+class TestWeatherServiceForecastBundle(unittest.TestCase):
+    def setUp(self):
+        from services.weather_service import WeatherService
+        self.WeatherService = WeatherService
+        self.cfg = {
+            "weather": {
+                "api_key": "testkey",
+                "city": "London",
+                "country": "GB",
+            }
+        }
+
+    @staticmethod
+    def _forecast_entry(date_str, time_str, temp_c, rain_3h=0.0, snow_3h=0.0):
+        return {
+            "dt_txt": "%s %s" % (date_str, time_str),
+            "main": {
+                "temp": temp_c,
+                "temp_min": temp_c - 1.0,
+                "temp_max": temp_c + 1.0,
+                "humidity": 60,
+            },
+            "weather": [{"main": "Clouds", "id": 801}],
+            "rain": {"3h": rain_3h},
+            "snow": {"3h": snow_3h},
+        }
+
+    def test_fetch_forecast_bundle_trend_shape_precip_cap_and_first_day(self):
+        entries = []
+        for i in range(10):
+            hour = (i * 3) % 24
+            entries.append(
+                self._forecast_entry(
+                    "2026-04-24",
+                    "%02d:00:00" % hour,
+                    10.0 + i,
+                    rain_3h=0.2 * i,
+                    snow_3h=0.1 * i,
+                )
+            )
+
+        # Second day should not appear in trend output.
+        entries.append(self._forecast_entry("2026-04-25", "00:00:00", 99.0, rain_3h=9.0, snow_3h=9.0))
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"list": entries}
+
+        import services.weather_service as ws_module
+        original_requests = ws_module.requests
+        try:
+            ws_module.requests = MagicMock()
+            ws_module.requests.get.return_value = mock_response
+
+            svc = self.WeatherService(self.cfg)
+            daily, trend = svc.fetch_forecast_bundle()
+
+            self.assertIsInstance(daily, list)
+            self.assertIsInstance(trend, list)
+            self.assertEqual(len(trend), 8)
+
+            for point in trend:
+                self.assertEqual(set(point.keys()), {"hour", "temp_c", "precip_mm"})
+
+            # rain + snow accumulation is used.
+            self.assertAlmostEqual(trend[3]["precip_mm"], (0.2 * 3) + (0.1 * 3))
+
+            # Trend is only extracted from the first forecast date.
+            self.assertLessEqual(max(p["hour"] for p in trend), 23)
+            self.assertNotIn(99.0, [p["temp_c"] for p in trend])
+        finally:
+            ws_module.requests = original_requests
+
+    def test_fetch_forecast_compat_returns_daily_list_shape(self):
+        entries = [
+            self._forecast_entry("2026-04-24", "06:00:00", 12.0),
+            self._forecast_entry("2026-04-24", "12:00:00", 14.0),
+            self._forecast_entry("2026-04-25", "06:00:00", 16.0),
+        ]
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"list": entries}
+
+        import services.weather_service as ws_module
+        original_requests = ws_module.requests
+        try:
+            ws_module.requests = MagicMock()
+            ws_module.requests.get.return_value = mock_response
+
+            svc = self.WeatherService(self.cfg)
+            daily = svc.fetch_forecast()
+
+            self.assertIsInstance(daily, list)
+            self.assertGreaterEqual(len(daily), 1)
+            required_keys = {
+                "date",
+                "day",
+                "temp_min",
+                "temp_max",
+                "humidity",
+                "condition",
+                "condition_id",
+            }
+            self.assertEqual(set(daily[0].keys()), required_keys)
+        finally:
+            ws_module.requests = original_requests
+
     def test_fetch_current_raises_on_http_error(self):
         cfg = {"weather": {"api_key": "k", "city": "X", "country": "Y"}}
         mock_response = MagicMock()

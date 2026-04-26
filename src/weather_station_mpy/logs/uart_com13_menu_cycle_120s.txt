@@ -1,0 +1,27 @@
+[BTN] Page -> 1
+[PC] fetch error: -203
+[MEM] Free heap: 79560 bytes
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[MEM] Free heap: 79528 bytes
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz
+[PC] fetch error: -203
+[ESP] RAM 77kB free  CPU 160MHz

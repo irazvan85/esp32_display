@@ -73,6 +73,12 @@ _CHAR_H3 = 24
 # ── Icon sizes ────────────────────────────────────────────────────────────────
 _ICON_W = 18
 
+# ── Page 0 trend graph area ───────────────────────────────────────────────────
+_TREND_X = 150
+_TREND_Y = 72
+_TREND_W = 89
+_TREND_H = 43
+
 # ── 5-day column x positions ─────────────────────────────────────────────────
 _C_DAY  =  2
 _C_ICON = 32
@@ -107,6 +113,7 @@ class DisplayManager:
         self._last_clock_x = 0
         self._last_date_text = ""
         self._last_date_x = 0
+        self._last_icon_anim_second = -1
         self._syncing_drawn = False
         # Per-tile value cache: None forces a full redraw on first render
         self._last_metric_vals = {
@@ -204,6 +211,7 @@ class DisplayManager:
                 self._last_second = -1
                 self._last_clock_text = ""
                 self._last_date_text = ""
+                self._last_icon_anim_second = -1
                 self._syncing_drawn = False
             elif state.page == 1:
                 self._draw_title("Tomorrow", "[2/6]")
@@ -278,6 +286,9 @@ class DisplayManager:
                 self._last_clock_text = ""
                 self._last_date_text = ""
 
+        icon_second = (now_local[5] if now_local is not None else (now_ms // 1000))
+        icon_frame = icon_second & 0x03
+
         # ── Weather block ──
         if state.weather_dirty or state.status_dirty:
             state.weather_dirty = False
@@ -288,7 +299,8 @@ class DisplayManager:
             if state.weather["valid"]:
                 w = state.weather
                 wx_id = w.get("condition_id", 800)
-                self._draw_weather_icon(2, _Z_WX + 2, wx_id, size=_ICON_W)
+                self._draw_weather_icon(2, _Z_WX + 2, wx_id, size=_ICON_W, frame=icon_frame)
+                self._last_icon_anim_second = icon_second
 
                 # Temperature — 2× scaled
                 temp_str = "%+.1fC" % w["temp_c"]
@@ -320,13 +332,22 @@ class DisplayManager:
                     age = ticks_diff(now_ms, state.last_weather_fetch_ms)
                     if age > stale_ms:
                         self._text_m("[stale]", 184, _Z_WX, board.COL_STALE, board.COL_BG)
+
+                self._draw_trend_graph(state.weather_trend)
             else:
                 msg = ("No Network" if not state.wifi_online
                        else ("Syncing..." if not state.time_synced
                              else "Fetching wx..."))
                 self._text_m(msg, 4, _Z_WX + 14, board.COL_STATUS, board.COL_BG)
+                self._draw_trend_graph([])
 
             self._draw_status_bar(state, now_ms, "[1/6]", state.last_weather_fetch_ms, "wx")
+
+        if state.weather["valid"] and icon_second != self._last_icon_anim_second:
+            wx_id = state.weather.get("condition_id", 800)
+            self._fill_rect(2, _Z_WX + 2, _ICON_W, _ICON_W, board.COL_BG)
+            self._draw_weather_icon(2, _Z_WX + 2, wx_id, size=_ICON_W, frame=icon_frame)
+            self._last_icon_anim_second = icon_second
 
     def _draw_clock_delta(self, new_text, new_x):
         old_text = self._last_clock_text
@@ -747,7 +768,7 @@ class DisplayManager:
     # OWM condition id groupings:
     #   2xx=thunder  3xx=drizzle  5xx=rain  6xx=snow  7xx=mist  800=clear  80x=clouds
 
-    def _draw_weather_icon(self, x, y, wx_id, size=_ICON_W):
+    def _draw_weather_icon(self, x, y, wx_id, size=_ICON_W, frame=0):
         tft = self._tft
         if tft is None or not self.ready:
             return
@@ -769,7 +790,7 @@ class DisplayManager:
         elif 300 <= wx_id < 600:
             # Drizzle or rain
             self._icon_cloud(x, y, s, board.COL_ICON_CLOUD)
-            drop_y = y + s * 2 // 3
+            drop_y = y + s * 2 // 3 + (frame % 3)
             step = max(2, s // 3)
             for dx in range(0, s, step):
                 tft.draw_line(x + dx, drop_y, x + dx - 1, drop_y + max(2, s // 4), board.COL_ICON_RAIN)
@@ -786,19 +807,22 @@ class DisplayManager:
 
         elif 700 <= wx_id < 800:
             # Mist
+            wobble = frame - 1
             col = board.COL_ICON_MIST
             for i in range(3):
                 ly = y + s // 5 + i * (s // 4)
-                lx0 = x + (i % 2) * (s // 6)
+                lx0 = x + (i % 2) * (s // 6) + wobble
                 self._hline(lx0, ly, s - (i % 2) * (s // 6), col)
 
         elif wx_id == 800:
             # Clear sun
             tft.fill_circle(cx, cy, r, board.COL_ICON_SUN)
             ray_r = r + 2
-            ray_len = max(2, s // 6)
+            ray_len = max(2, s // 6) + (frame & 1)
             for ax, ay in ((1, 0), (0, 1), (-1, 0), (0, -1),
                            (1, 1), (-1, 1), (1, -1), (-1, -1)):
+                if ax != 0 and ay != 0 and ((frame + (1 if ax > 0 else 0)) & 1):
+                    continue
                 norm = 1 if ax == 0 or ay == 0 else 2
                 rx0 = cx + ax * ray_r // norm
                 ry0 = cy + ay * ray_r // norm
@@ -808,9 +832,85 @@ class DisplayManager:
 
         else:
             # Clouds (801-804)
-            self._icon_cloud(x, y, s, board.COL_ICON_CLOUD)
+            wobble = frame - 1
+            self._icon_cloud(x + wobble, y, s, board.COL_ICON_CLOUD)
             if wx_id == 801:
                 tft.fill_circle(x + s - r, y + r, max(1, r - 1), board.COL_ICON_SUN)
+
+    def _draw_trend_graph(self, trend):
+        gx = _TREND_X
+        gy = _TREND_Y
+        gw = _TREND_W
+        gh = _TREND_H
+
+        self._fill_rect(gx, gy, gw, gh, board.COL_BG)
+        self._draw_rect_outline(gx, gy, gw, gh, board.COL_TREND_AXIS)
+        self._text("T", gx + 3, gy + 2, board.COL_TREND_TEMP, board.COL_BG)
+        self._text("P", gx + 12, gy + 2, board.COL_TREND_PRECIP, board.COL_BG)
+
+        if not trend:
+            self._text("trend...", gx + 24, gy + 2, board.COL_STATUS, board.COL_BG)
+            return
+
+        data = trend[:8]
+        n = len(data)
+        if n <= 0:
+            self._text("trend...", gx + 24, gy + 2, board.COL_STATUS, board.COL_BG)
+            return
+
+        px0 = gx + 2
+        py0 = gy + 12
+        pw = gw - 4
+        ph = gh - 14
+
+        temps = [float(p.get("temp_c", 0.0)) for p in data]
+        precips = [float(p.get("precip_mm", 0.0)) for p in data]
+
+        t_min = min(temps)
+        t_max = max(temps)
+        if t_max <= t_min:
+            t_max = t_min + 1.0
+        p_max = max(precips)
+
+        if n == 1:
+            x_points = [px0 + pw // 2]
+        else:
+            step = (pw - 1) / (n - 1)
+            x_points = [px0 + int(i * step) for i in range(n)]
+
+        if p_max > 0.0:
+            for idx in range(n):
+                bar_h = int((precips[idx] / p_max) * (ph - 1))
+                if bar_h <= 0:
+                    continue
+                x = x_points[idx]
+                y = py0 + ph - bar_h
+                self._fill_rect(x, y, 2, bar_h, board.COL_TREND_PRECIP)
+
+        tft = self._tft
+        if tft is None:
+            return
+
+        prev_x = None
+        prev_y = None
+        for idx in range(n):
+            x = x_points[idx]
+            temp = temps[idx]
+            y = py0 + ph - 1 - int(((temp - t_min) / (t_max - t_min)) * (ph - 1))
+            if prev_x is None:
+                self._fill_rect(x, y, 2, 2, board.COL_TREND_TEMP)
+            else:
+                tft.draw_line(prev_x, prev_y, x, y, board.COL_TREND_TEMP)
+            prev_x = x
+            prev_y = y
+
+    def _draw_rect_outline(self, x, y, w, h, color):
+        if w <= 1 or h <= 1:
+            return
+        self._hline(x, y, w, color)
+        self._hline(x, y + h - 1, w, color)
+        self._fill_rect(x, y, 1, h, color)
+        self._fill_rect(x + w - 1, y, 1, h, color)
 
     def _icon_cloud(self, x, y, size, color):
         tft = self._tft

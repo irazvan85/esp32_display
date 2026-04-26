@@ -38,22 +38,23 @@ from services.wifi_service import WifiService
 
 
 async def button_task(state):
-    # Use a pin IRQ flag so presses are captured even during blocking HTTP calls.
-    # The IRQ fires immediately; the async loop processes it on the next 20ms tick.
-    _flag = bytearray(1)   # IRQ-safe flag: set by ISR, cleared by async loop
+    # Queue press events in an IRQ-safe byte so bursts are not lost while
+    # blocking network calls run in other tasks.
+    _press_q = bytearray(1)
     button = Pin(board.BTN_PIN, Pin.IN, Pin.PULL_UP)
 
     def _irq(_pin):
-        _flag[0] = 1
+        if _press_q[0] < 255:
+            _press_q[0] += 1
 
     button.irq(trigger=Pin.IRQ_FALLING, handler=_irq)
     last_press_ms = 0
 
     while True:
-        if _flag[0]:
-            _flag[0] = 0
+        if _press_q[0]:
             now = ticks_ms()
             if ticks_diff(now, last_press_ms) > board.BTN_DEBOUNCE_MS:
+                _press_q[0] -= 1
                 last_press_ms = now
                 if state.page == board.PAGE_PC_MONITOR:
                     gpu_available = state.metrics.get("gpu_pct") is not None
@@ -75,6 +76,7 @@ async def button_task(state):
 
 async def wifi_task(state, wifi_svc, cfg, time_svc):
     wifi_check_ms = int(cfg["wifi"].get("check_interval_ms", 30_000))
+    wifi_offline_retry_ms = int(cfg["wifi"].get("offline_retry_ms", 5_000))
 
     while True:
         online = await wifi_svc.ensure_connected()
@@ -87,7 +89,10 @@ async def wifi_task(state, wifi_svc, cfg, time_svc):
             if online:
                 state.time_synced = await time_svc.sync_ntp()
 
-        await asyncio.sleep_ms(wifi_check_ms)
+        if online:
+            await asyncio.sleep_ms(wifi_check_ms)
+        else:
+            await asyncio.sleep_ms(wifi_offline_retry_ms)
 
 
 async def weather_task(state, weather_svc, cfg):
@@ -129,19 +134,22 @@ async def weather_task(state, weather_svc, cfg):
             )
         except (OSError, ValueError, RuntimeError) as exc:
             print("[OWM] fetch error: %s" % exc)
+            gc.collect()
             await asyncio.sleep_ms(retry_ms)
             continue
 
         await asyncio.sleep_ms(0)  # yield between blocking HTTP calls
 
         try:
-            forecast = weather_svc.fetch_forecast()
+            forecast, trend = weather_svc.fetch_forecast_bundle()
             gc.collect()  # free parsed JSON payloads
             state.forecast = forecast
+            state.weather_trend = trend
             state.forecast_dirty = True
             state.last_forecast_fetch_ms = ticks_ms()
         except (OSError, ValueError, RuntimeError) as exc:
             print("[OWM] forecast error: %s" % exc)
+            gc.collect()
 
         await asyncio.sleep_ms(refresh_ms)
 
@@ -173,6 +181,7 @@ async def solar_task(state, solar_svc, cfg):
                     )
             except (OSError, ValueError, RuntimeError) as exc:
                 print("[Solar] fetch error: %s" % exc)
+                gc.collect()
 
         await asyncio.sleep_ms(refresh_ms)
 
@@ -183,6 +192,8 @@ async def metrics_task(state, metrics_svc, cfg):
         return
 
     refresh_ms = int(cfg["metrics"].get("refresh_ms", 10_000))
+
+    _consec_fail = 0
 
     while True:
         if state.wifi_online:
@@ -201,10 +212,17 @@ async def metrics_task(state, metrics_svc, cfg):
                         state.metrics["disk_pct"],
                     )
                 )
+                _consec_fail = 0
+                await asyncio.sleep_ms(refresh_ms)
             except (OSError, ValueError, RuntimeError) as exc:
                 print("[PC] fetch error: %s" % exc)
-
-        await asyncio.sleep_ms(refresh_ms)
+                gc.collect()
+                _consec_fail += 1
+                sleep_ms = min(refresh_ms * (2 ** min(_consec_fail, 5)), 300_000)
+                print("[PC] backoff %ds after %d consecutive failures" % (sleep_ms // 1000, _consec_fail))
+                await asyncio.sleep_ms(sleep_ms)
+        else:
+            await asyncio.sleep_ms(refresh_ms)
 
 
 async def render_task(state, display, time_svc, cfg):
@@ -337,14 +355,25 @@ async def app_main():
     wifi_svc = WifiService(cfg, preallocated=_wifi_prealloc_ok)
     time_svc = TimeService(cfg)
 
-    # Initial connectivity attempt.
-    online = await wifi_svc.ensure_connected()
+    # Initial connectivity attempts.
+    startup_retries = int(cfg["wifi"].get("startup_retries", 4))
+    startup_retry_ms = int(cfg["wifi"].get("startup_retry_ms", 2_000))
+    online = False
+    for attempt in range(startup_retries):
+        print("[WiFi] startup connect attempt %d/%d" % (attempt + 1, startup_retries))
+        online = await wifi_svc.ensure_connected()
+        if online:
+            break
+        if attempt < startup_retries - 1:
+            await asyncio.sleep_ms(startup_retry_ms)
+
     synced = await time_svc.sync_ntp() if online else False
 
     # --- Startup weather bootstrap (before display init to avoid -202/-203) ---
     weather_svc = WeatherService(cfg)
     startup_weather = None
     startup_forecast = None
+    startup_trend = None
 
     if online and bool(cfg["weather"].get("enabled", True)):
         bootstrap_tries = int(cfg["weather"].get("startup_retries", 3))
@@ -368,7 +397,7 @@ async def app_main():
 
         if startup_weather is not None:
             try:
-                startup_forecast = weather_svc.fetch_forecast()
+                startup_forecast, startup_trend = weather_svc.fetch_forecast_bundle()
                 gc.collect()
                 print("[OWM] startup forecast OK")
             except (OSError, ValueError, RuntimeError) as exc:
@@ -392,6 +421,7 @@ async def app_main():
 
     if startup_forecast is not None:
         state.forecast = startup_forecast
+        state.weather_trend = startup_trend if startup_trend is not None else []
         state.forecast_dirty = True
         state.last_forecast_fetch_ms = ticks_ms()
 
