@@ -1,0 +1,17 @@
+[BTN] Page -> 1
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[MEM] Free heap: 67872 bytes
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[PC] fetch error: -203
+[PC] backoff 160s after 4 consecutive failures
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[MEM] Free heap: 67872 bytes
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz

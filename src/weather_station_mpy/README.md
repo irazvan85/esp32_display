@@ -286,13 +286,21 @@ Device tests in `tests/device/test_app.py` include:
 
 **Web UI unreachable from PC**: If the ESP shows a WiFi IP and `[WEB] Config UI: http://<ip>:<port>/` in UART, but your PC cannot ARP/ping/reach that IP, this is typically AP/client isolation (or VLAN separation). Connect the PC to the same SSID/VLAN as the ESP, or disable client isolation on that SSID.
 
+**PC metrics diagnostics (`[PCDBG]`)**: When `[PC] fetch error: ...` appears, the firmware may emit a short connectivity snapshot. `endpoint host:port` shows the parsed target from `metrics.pc_url`. `ifconfig (...)` is the ESP STA tuple `(ip, netmask, gateway, dns)`. `resolve ok (...)` / `resolve err ...` shows whether DNS or host parsing succeeded. `connect err ...` is the TCP connect result after resolution.
+
+**Common `[PCDBG]` pattern: `resolve ok` + `connect err -203`**: The ESP resolved the target, but could not open a TCP session to that `host:port`. Treat this as a blocked TCP path or closed listener on the PC side: Windows firewall, VLAN or AP/client isolation, wrong PC IP, or the metrics API not actually listening on `8765`.
+
+**Windows checklist for PC metrics on port `8765`**: Confirm the API is listening with `netstat -ano | findstr :8765`. Confirm the PC LAN IP with `ipconfig` and match it to `metrics.pc_url`. Test `http://<PC_LAN_IP>:8765/api/system/metrics` from another LAN client, not just the host PC. If needed, allow inbound TCP `8765` on the Windows Defender Firewall `Private` profile.
+
 **Repeated idle web `accept()` timeout logs**: In current firmware, idle socket `accept()` timeouts are treated as normal and suppressed. UART should not be flooded by timeout-only web accept errors after updating.
+
+**Web bind/listen failures**: If UART shows `[WEB] Pre-bind failed: ...` or `[WEB] bind/listen error: ...`, the config UI socket could not bind yet. Runtime retries now use adaptive backoff and escalate the retry interval up to `120s`, reducing repeated bind spam while the stack recovers.
 
 **First-boot config warning / app halts**: Expected behaviour. The app auto-creates `config.json` from defaults and halts until all `your_*` / `changeme` placeholders are replaced. Read and edit the file with `mpremote connect COM13 fs cat :/config.json`, then reboot.
 
 **Solar page shows no data**: `solar.enabled` is `false` by default. Set it to `true` in `config.json` and supply valid SolarMan credentials.
 
-**PC metrics page shows stale/no data**: Verify the PC metrics API is running and reachable at the configured `metrics.pc_url`. Check UART for `[PC] fetch error` messages.
+**PC metrics page shows stale/no data**: Verify the PC metrics API is running and reachable at the configured `metrics.pc_url`. Use the `[PCDBG]` lines above to separate name resolution failures from TCP path failures.
 
 ## Next implementation targets
 

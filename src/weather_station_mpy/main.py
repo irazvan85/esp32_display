@@ -258,6 +258,24 @@ async def metrics_task(state, metrics_svc, cfg):
                 print("[PC] fetch error: %s" % exc)
                 gc.collect()
                 _consec_fail += 1
+                if _consec_fail in (1, 3, 6):
+                    try:
+                        diag = metrics_svc.connectivity_diag()
+                        host = diag.get("host") or "?"
+                        port = diag.get("port") or 80
+                        print("[PCDBG] endpoint %s:%d" % (host, port))
+                        if diag.get("ifconfig") is not None:
+                            print("[PCDBG] ifconfig %s" % (diag.get("ifconfig"),))
+                        if diag.get("resolve_ok"):
+                            print("[PCDBG] resolve ok %s" % (diag.get("resolve_addr"),))
+                        else:
+                            print("[PCDBG] resolve err %s" % diag.get("resolve_error"))
+                        if diag.get("connect_ok"):
+                            print("[PCDBG] connect ok")
+                        else:
+                            print("[PCDBG] connect err %s" % diag.get("connect_error"))
+                    except Exception as dbg_exc:
+                        print("[PCDBG] diag error: %s" % dbg_exc)
                 sleep_ms = min(refresh_ms * (2 ** min(_consec_fail, 5)), 300_000)
                 print("[PC] backoff %ds after %d consecutive failures" % (sleep_ms // 1000, _consec_fail))
                 await asyncio.sleep_ms(sleep_ms)
@@ -416,7 +434,8 @@ async def web_config_task(state, cfg, wifi_svc, server_sock=None):
 
         return method, path, content_length, body
 
-    retry_ms = 10_000
+    retry_base_ms = 10_000
+    retry_ms = retry_base_ms
 
     while True:
         try:
@@ -427,6 +446,7 @@ async def web_config_task(state, cfg, wifi_svc, server_sock=None):
                         continue
 
                     try:
+                        gc.collect()
                         server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         try:
                             server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -435,9 +455,11 @@ async def web_config_task(state, cfg, wifi_svc, server_sock=None):
                         server_sock.bind(("0.0.0.0", port))
                         server_sock.listen(1)
                         server_sock.settimeout(1)
+                        retry_ms = retry_base_ms
                         state.web_ready = True
                     except OSError as exc:
                         state.web_ready = False
+                        retry_ms = min(retry_ms * 2, 120_000)
                         print("[WEB] bind/listen error: %s (retry in %ds)" % (exc, retry_ms // 1000))
                         if server_sock is not None:
                             try:
@@ -664,7 +686,10 @@ async def app_main():
     startup_forecast = None
     startup_trend = None
 
-    if online and bool(cfg["weather"].get("enabled", True)):
+    weather_enabled = bool(cfg["weather"].get("enabled", True))
+    startup_bootstrap_enabled = bool(cfg["weather"].get("startup_bootstrap", False))
+
+    if online and weather_enabled and startup_bootstrap_enabled:
         _boot_heap = gc.mem_free()
         if _boot_heap < 70_000:
             print("[OWM] startup bootstrap skipped (strict memory guard)")
@@ -697,6 +722,23 @@ async def app_main():
                         gc.collect()
             del _wx, _BootWX
             gc.collect()
+    elif online and weather_enabled and not startup_bootstrap_enabled:
+        print("[OWM] startup bootstrap disabled (config)")
+
+    if gc.mem_free() < 75_000:
+        startup_weather = None
+        startup_forecast = None
+        startup_trend = None
+        print("[OWM] bootstrap payload dropped (low heap before display)")
+        gc.collect()
+
+    from ui.display_manager import DisplayManager
+    display = DisplayManager()
+    display.init()
+    display.draw_boot("Booting...")
+
+    gc.collect()
+    # reclaim heap before opening web listener socket
 
     # ---- Web socket pre-bind (provisioning window) -------------------------
     # Bind BEFORE any tasks start to avoid ENOBUFS from concurrent outbound
@@ -729,10 +771,6 @@ async def app_main():
                 _web_server_sock = None
         gc.collect()
     # -----------------------------------------------------------------------
-    from ui.display_manager import DisplayManager
-    display = DisplayManager()
-    display.init()
-    display.draw_boot("Booting...")
 
     state = AppState()
     state.enabled_pages = _normalize_enabled_pages(cfg.get("ui", {}).get("enabled_pages", []))

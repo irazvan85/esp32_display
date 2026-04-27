@@ -20,6 +20,7 @@ DEFAULT_CONFIG = {
     },
     "weather": {
         "enabled": True,
+        "startup_bootstrap": False,
         "api_key": "your_openweathermap_api_key",
         "city": "Bucharest",
         "country": "RO",
