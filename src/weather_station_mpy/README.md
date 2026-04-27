@@ -309,3 +309,47 @@ Device tests in `tests/device/test_app.py` include:
 - Improved forecast memory profile (selective extraction and payload release — partial; gc.collect() after fetch is in place).
 - TLS hardening options for API requests where feasible on MicroPython.
 
+## UART Display Snapshot
+
+The firmware includes a `uart_capture_task` that listens on the serial port for the command `!SNAP` and responds with a JSON dump of the current display state.
+
+**Purpose**: diagnose what is shown on the physical display without looking at the device. Works while the main app is running.
+
+**Requirements on PC**: `pyserial>=3.5` — install via `pip install -r requirements.txt`
+
+**Usage**:
+
+```powershell
+# Capture snapshot and render as HTML
+python tools/capture_display.py --port COM13
+
+# Custom output file
+python tools/capture_display.py --port COM13 --output my_snapshot.html
+```
+
+The script sends `!SNAP\r\n` to COM13, waits up to 15 seconds for a `>>SNAP_START … >>SNAP_END` block from the device, parses the JSON, and writes an HTML mockup of all display pages to `snapshot.html`.
+
+**Device side**: `uart_capture_task` is added automatically to the async task list in `main.py` when `services/uart_capture_service.py` is deployed on the device (it is part of the standard deploy set via `deploy.ps1`).
+
+**UART snapshot output format**:
+```
+[SNAP] Snapshot triggered
+>>SNAP_START
+{"page":0,"wifi_online":true,"weather":{"valid":true,"temp_c":7.1,...},...}
+>>SNAP_END
+```
+
+**Limitations**:
+- Not a pixel-level screenshot — the ST7789 SPI driver is write-only; reading back framebuffer pixels is not supported.
+- The snapshot reflects runtime state, not a pixel render. Visual layout differences between pages are reflected in the HTML via the `page` field.
+- Memory overhead per snapshot: ~1–2 KB for JSON serialization. Safe with normal ≥60 KB free heap.
+
+## OWM Error Reference
+
+| Error code | MicroPython meaning | Cause | Fix |
+|---|---|---|---|
+| `-202` | `EAI_FAIL` — DNS server returned failure | DNS server unreachable or NXDOMAIN | Retried automatically (3×) with gc.collect() |
+| `-203` | `EAI_MEMORY` — DNS resolver out of heap | Fragmented heap after boot | Retried automatically (3×) with gc.collect() |
+| `105` | `ENOBUFS` — lwIP PCB pool exhausted | Too many concurrent sockets | Web config UI is disabled by default; fix root cause |
+| `118` | `EHOSTUNREACH` | WiFi route unavailable | Auto-heal reconnect triggers after 3 consecutive errors |
+

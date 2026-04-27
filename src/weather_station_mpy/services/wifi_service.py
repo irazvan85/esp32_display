@@ -91,7 +91,7 @@ class WifiService:
         except Exception:
             pass
 
-        await asyncio.sleep_ms(500)
+        await asyncio.sleep_ms(1000)
 
         try:
             self._wlan.active(True)
@@ -108,14 +108,17 @@ class WifiService:
         except Exception:
             pass
 
-        await asyncio.sleep_ms(500)
+        await asyncio.sleep_ms(1000)
 
-    async def ensure_connected(self):
+    async def ensure_connected(self, force=False):
         if self._wlan is None:
             return False
 
-        if self._wlan.isconnected():
+        if self._wlan.isconnected() and not force:
             return True
+
+        if force and self._wlan.isconnected():
+            print("[WiFi] forcing reconnect")
 
         ssid = self._cfg["wifi"]["ssid"]
         password = self._cfg["wifi"]["password"]
@@ -152,6 +155,9 @@ class WifiService:
                 last_status = status
 
             await asyncio.sleep_ms(250)
+
+        if last_status == 15:
+            print("[WiFi] status=15 ASSOC_FAIL \u2014 AP rejected association, longer backoff needed")
 
         if self._wlan.isconnected():
             # Override DNS with reliable public resolver if explicitly configured.

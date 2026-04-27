@@ -17,6 +17,8 @@ class AppState:
         self.time_synced = False
         self.web_ready = False
         self.weather_error = ""
+        self.net_error_streak = 0
+        self.force_wifi_reconnect = False
 
         self.last_weather_fetch_ms = 0
         self.last_forecast_fetch_ms = 0

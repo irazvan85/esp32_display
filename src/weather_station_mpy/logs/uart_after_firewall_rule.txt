@@ -1,0 +1,63 @@
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] Connected, IP: 192.168.1.31
+[NTP] Time synced (UTC): 04:05:32
+[OWM] startup bootstrap disabled (config)
+[DISP] ST7789 initialized (improved UI)
+[WEB] Pre-bind failed: -203 — will retry in task
+[WEB] bind/listen error: -203 (retry in 20s)
+[MEM] Free heap: 66208 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[OWM] fetch error: -203
+[Solar] Disabled in config
+[PC] fetch error: -203
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.31', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 20s after 1 consecutive failures
+[ESP] RAM 63kB free  CPU 160MHz
+[WEB] bind/listen error: -203 (retry in 40s)
+[PC] fetch error: -203
+[PC] backoff 40s after 2 consecutive failures
+[ESP] RAM 63kB free  CPU 160MHz
+[OWM] fetch error: -203
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz
+[MEM] Free heap: 64784 bytes
+[WEB] bind/listen error: -203 (retry in 80s)
+[OWM] fetch error: -203
+[PC] fetch error: -203
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.31', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 80s after 3 consecutive failures
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz
+[OWM] fetch error: -203
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz
+[MEM] Free heap: 64784 bytes
+[OWM] fetch error: -203
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz
+[WEB] bind/listen error: -203 (retry in 120s)
+[PC] fetch error: -203
+[PC] backoff 160s after 4 consecutive failures
+[ESP] RAM 63kB free  CPU 160MHz
+[OWM] fetch error: -203
+[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 63kB free  CPU 160MHz

@@ -9,6 +9,8 @@ except ImportError:
     requests = None
 
 from compat import ticks_ms
+import gc
+import time
 
 
 _DAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
@@ -190,8 +192,29 @@ class WeatherService:
 
     @staticmethod
     def _get(url, timeout_s=5):
-        """GET with timeout; falls back to no-timeout if urequests doesn't support it."""
-        try:
-            return requests.get(url, timeout=timeout_s)
-        except TypeError:
-            return requests.get(url)
+        """GET with timeout and DNS-failure retry.
+
+        Retries up to 3 times on transient DNS errors:
+          OSError(-202) = EAI_FAIL  — DNS server returned failure
+          OSError(-203) = EAI_MEMORY — DNS resolver out of heap memory
+
+        A gc.collect() is run before each retry to free fragmented heap.
+        Other OSErrors propagate immediately.
+        """
+        last_exc = None
+        for attempt in range(3):
+            if attempt > 0:
+                gc.collect()
+                time.sleep(0.2)
+            try:
+                try:
+                    return requests.get(url, timeout=timeout_s)
+                except TypeError:
+                    return requests.get(url)
+            except OSError as exc:
+                code = exc.args[0] if exc.args else None
+                if code in (-202, -203):
+                    last_exc = exc
+                    continue
+                raise
+        raise last_exc

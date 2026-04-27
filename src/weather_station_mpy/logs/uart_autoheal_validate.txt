@@ -1,0 +1,100 @@
+[WiFi] Connected, IP: 192.168.1.31
+[NTP] Time synced (UTC): 04:12:42
+[OWM] startup bootstrap disabled (config)
+[DISP] ST7789 initialized (improved UI)
+[WEB] Pre-bind failed: -203 — will retry in task
+[WEB] bind/listen error: -203 (retry in 20s)
+[MEM] Free heap: 65104 bytes
+[ESP] RAM 63kB free  CPU 160MHz
+[OWM] fetch error: -203
+[Solar] Disabled in config
+[PC] fetch error: -203
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.31', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 20s after 1 consecutive failures
+[ESP] RAM 62kB free  CPU 160MHz
+[WEB] bind/listen error: -203 (retry in 40s)
+[PC] fetch error: -203
+[WiFi] scheduling reconnect after transport errors
+[PC] backoff 40s after 2 consecutive failures
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] forcing reconnect
+[WiFi] Connecting to IOT
+[OWM] fetch error: [Errno 118] EHOSTUNREACH
+[WiFi] status=1000
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] status=15
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[MEM] Free heap: 63856 bytes
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] status=15
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] status=15
+[MEM] Free heap: 63712 bytes
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[WiFi] Connecting to IOT
+[ESP] RAM 63kB free  CPU 160MHz
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[MEM] Free heap: 63712 bytes
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] status=15
+[WiFi] Connect timeout - offline mode
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[WiFi] Connecting to IOT
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 62kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode

@@ -264,5 +264,109 @@ class TestWeatherServiceForecastBundle(unittest.TestCase):
             ws_module.requests = original_requests
 
 
+class TestWeatherServiceGetRetry(unittest.TestCase):
+    """Tests that _get() retries on transient DNS errors (-202, -203)."""
+
+    def setUp(self):
+        from services.weather_service import WeatherService
+        import services.weather_service as ws_module
+        self.WeatherService = WeatherService
+        self.ws_module = ws_module
+
+    def _make_svc(self):
+        return self.WeatherService({
+            "weather": {"api_key": "k", "city": "X", "country": "YY"}
+        })
+
+    def test_retry_on_eai_memory_succeeds_second_attempt(self):
+        """OSError(-203) on first call → succeed on second → no exception raised."""
+        good_response = MagicMock()
+        good_response.status_code = 200
+        good_response.json.return_value = {
+            "weather": [{"main": "Clear", "id": 800}],
+            "main": {"temp": 10.0, "feels_like": 9.0, "humidity": 50},
+            "wind": {"speed": 1.0},
+        }
+
+        original = self.ws_module.requests
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [OSError(-203), good_response]
+        self.ws_module.requests = mock_requests
+        try:
+            svc = self._make_svc()
+            result = svc.fetch_current()
+            self.assertTrue(result["valid"])
+            self.assertEqual(mock_requests.get.call_count, 2)
+        finally:
+            self.ws_module.requests = original
+
+    def test_retry_on_eai_fail_succeeds_third_attempt(self):
+        """OSError(-202) twice → succeed on third attempt."""
+        good_response = MagicMock()
+        good_response.status_code = 200
+        good_response.json.return_value = {
+            "weather": [{"main": "Clouds", "id": 801}],
+            "main": {"temp": 5.0, "feels_like": 3.0, "humidity": 80},
+            "wind": {"speed": 0.5},
+        }
+
+        original = self.ws_module.requests
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [OSError(-202), OSError(-202), good_response]
+        self.ws_module.requests = mock_requests
+        try:
+            svc = self._make_svc()
+            result = svc.fetch_current()
+            self.assertTrue(result["valid"])
+            self.assertEqual(mock_requests.get.call_count, 3)
+        finally:
+            self.ws_module.requests = original
+
+    def test_all_retries_exhausted_raises_last_exc(self):
+        """Three consecutive OSError(-203) should raise the last one."""
+        original = self.ws_module.requests
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [OSError(-203), OSError(-203), OSError(-203)]
+        self.ws_module.requests = mock_requests
+        try:
+            svc = self._make_svc()
+            with self.assertRaises(OSError) as ctx:
+                svc.fetch_current()
+            self.assertEqual(ctx.exception.args[0], -203)
+            self.assertEqual(mock_requests.get.call_count, 3)
+        finally:
+            self.ws_module.requests = original
+
+    def test_non_dns_oserror_not_retried(self):
+        """OSError(111) ECONNREFUSED must NOT be retried."""
+        original = self.ws_module.requests
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = OSError(111)
+        self.ws_module.requests = mock_requests
+        try:
+            svc = self._make_svc()
+            with self.assertRaises(OSError) as ctx:
+                svc.fetch_current()
+            self.assertEqual(ctx.exception.args[0], 111)
+            self.assertEqual(mock_requests.get.call_count, 1)  # no retry
+        finally:
+            self.ws_module.requests = original
+
+    def test_mixed_dns_errors_eventually_raises(self):
+        """-202 then -203 then -203: all DNS, all retried, final -203 is raised."""
+        original = self.ws_module.requests
+        mock_requests = MagicMock()
+        mock_requests.get.side_effect = [OSError(-202), OSError(-203), OSError(-203)]
+        self.ws_module.requests = mock_requests
+        try:
+            svc = self._make_svc()
+            with self.assertRaises(OSError) as ctx:
+                svc.fetch_current()
+            self.assertEqual(ctx.exception.args[0], -203)
+            self.assertEqual(mock_requests.get.call_count, 3)
+        finally:
+            self.ws_module.requests = original
+
+
 if __name__ == "__main__":
     unittest.main()

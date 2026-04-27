@@ -1,0 +1,6 @@
+# Host-side test dependencies
+# Install with: pip install -r requirements.txt
+pytest>=7.0
+psutil>=5.9.0
+# UART display capture tool (tools/capture_display.py)
+pyserial>=3.5

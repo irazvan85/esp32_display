@@ -73,6 +73,46 @@ def _apply_theme_safe(theme_name):
         return "retro"
 
 
+def _is_transport_error(exc):
+    code = None
+    if len(exc.args) > 0:
+        code = exc.args[0]
+    if code in (-202, 118, 113):
+        return True
+
+    text = str(exc).lower()
+    if "ehostunreach" in text:
+        return True
+    if "host unreachable" in text:
+        return True
+    if "enetunreach" in text:
+        return True
+    if "network unreachable" in text:
+        return True
+    return False
+
+
+def _is_enobufs(exc):
+    if len(exc.args) > 0:
+        code = exc.args[0]
+        if code == 105:
+            return True
+        text = str(exc).lower()
+        if "enobufs" in text or "no buffer" in text:
+            return True
+    return False
+
+
+def _schedule_transport_reconnect(state, cfg):
+    threshold = int(cfg["wifi"].get("transport_error_reconnect_threshold", 3))
+    if threshold < 1:
+        threshold = 1
+
+    if state.net_error_streak >= threshold and not state.force_wifi_reconnect:
+        state.force_wifi_reconnect = True
+        print("[WiFi] scheduling reconnect after transport errors")
+
+
 async def button_task(state):
     # Queue press events in an IRQ-safe byte so bursts are not lost while
     # blocking network calls run in other tasks.
@@ -113,13 +153,30 @@ async def button_task(state):
 async def wifi_task(state, wifi_svc, cfg, time_svc):
     wifi_check_ms = int(cfg["wifi"].get("check_interval_ms", 30_000))
     wifi_offline_retry_ms = int(cfg["wifi"].get("offline_retry_ms", 5_000))
+    _reconnect_backoff_ms = wifi_offline_retry_ms
 
     while True:
-        online = await wifi_svc.ensure_connected()
+        force_requested = state.force_wifi_reconnect
+        online = await wifi_svc.ensure_connected(force=force_requested)
         changed = online != state.wifi_online
         state.wifi_online = online
 
+        if force_requested:
+            # Always clear the flag so we don't hammer the AP on every cycle.
+            state.force_wifi_reconnect = False
+            if online:
+                state.net_error_streak = 0
+                _reconnect_backoff_ms = wifi_offline_retry_ms
+                print("[WiFi] reconnect healed transport path")
+            else:
+                _reconnect_backoff_ms = min(_reconnect_backoff_ms * 2, 120_000)
+                print("[WiFi] reconnect failed — backoff %ds" % (_reconnect_backoff_ms // 1000))
+                state.status_dirty = True
+                await asyncio.sleep_ms(_reconnect_backoff_ms)
+                continue
+
         if changed:
+            _reconnect_backoff_ms = wifi_offline_retry_ms
             state.status_dirty = True
             state.page_dirty = True
             if online:
@@ -151,6 +208,7 @@ async def weather_task(state, weather_svc, cfg):
             await asyncio.sleep_ms(offline_retry_ms)
             continue
 
+        gc.collect()
         try:
             weather = weather_svc.fetch_current()
             gc.collect()  # free parsed JSON payloads
@@ -159,6 +217,7 @@ async def weather_task(state, weather_svc, cfg):
             state.weather_dirty = True
             state.status_dirty = True
             state.weather_error = ""
+            state.net_error_streak = 0
             state.last_weather_fetch_ms = weather["fetched_ms"]
 
             print(
@@ -170,12 +229,22 @@ async def weather_task(state, weather_svc, cfg):
                 )
             )
         except (OSError, ValueError, RuntimeError) as exc:
-            print("[OWM] fetch error: %s" % exc)
+            _err_code = exc.args[0] if isinstance(exc, OSError) and exc.args else None
+            if _err_code == -203:
+                print("[OWM] DNS memory error (EAI_MEMORY) — GC and retry in 10s")
+            elif _err_code == -202:
+                print("[OWM] DNS failure (EAI_FAIL) — retry in 10s")
+            else:
+                print("[OWM] fetch error: %s" % exc)
             state.weather_error = str(exc)
             state.status_dirty = True
             state.weather_dirty = True
+            if _is_transport_error(exc) and not _is_enobufs(exc):
+                state.net_error_streak += 1
+                _schedule_transport_reconnect(state, cfg)
             gc.collect()
-            await asyncio.sleep_ms(retry_ms)
+            _owm_retry_ms = 10_000 if _err_code in (-202, -203) else retry_ms
+            await asyncio.sleep_ms(_owm_retry_ms)
             continue
 
         await asyncio.sleep_ms(0)  # yield between blocking HTTP calls
@@ -244,6 +313,7 @@ async def metrics_task(state, metrics_svc, cfg):
                 state.metrics_dirty = True
                 state.status_dirty = True
                 state.last_metrics_fetch_ms = metrics["fetched_ms"]
+                state.net_error_streak = 0
                 print(
                     "[PC] CPU %.0f%% RAM %.0f%% DISK %.0f%%"
                     % (
@@ -258,6 +328,9 @@ async def metrics_task(state, metrics_svc, cfg):
                 print("[PC] fetch error: %s" % exc)
                 gc.collect()
                 _consec_fail += 1
+                if _is_transport_error(exc) and not _is_enobufs(exc):
+                    state.net_error_streak += 1
+                    _schedule_transport_reconnect(state, cfg)
                 if _consec_fail in (1, 3, 6):
                     try:
                         diag = metrics_svc.connectivity_diag()
@@ -459,8 +532,12 @@ async def web_config_task(state, cfg, wifi_svc, server_sock=None):
                         state.web_ready = True
                     except OSError as exc:
                         state.web_ready = False
-                        retry_ms = min(retry_ms * 2, 120_000)
-                        print("[WEB] bind/listen error: %s (retry in %ds)" % (exc, retry_ms // 1000))
+                        if _is_enobufs(exc):
+                            retry_ms = 300_000  # 5 min — PCB pool exhausted, wait it out
+                            print("[WEB] ENOBUFS — PCB pool exhausted, retry in 5 min")
+                        else:
+                            retry_ms = min(retry_ms * 2, 120_000)
+                            print("[WEB] bind/listen error: %s (retry in %ds)" % (exc, retry_ms // 1000))
                         if server_sock is not None:
                             try:
                                 server_sock.close()
@@ -800,6 +877,12 @@ async def app_main():
     from services.solar_service import SolarService
     from services.metrics_service import MetricsService
 
+    try:
+        from services.uart_capture_service import uart_capture_task as _uart_capture_task
+        _uart_capture_enabled = True
+    except ImportError:
+        _uart_capture_enabled = False
+
     weather_svc = WeatherService(cfg)
     solar_svc = SolarService(cfg)
     metrics_svc = MetricsService(cfg)
@@ -817,6 +900,9 @@ async def app_main():
         asyncio.create_task(metrics_task(state, metrics_svc, cfg)),
     ]
 
+    if _uart_capture_enabled:
+        tasks.append(asyncio.create_task(_uart_capture_task(state)))
+
     try:
         await asyncio.gather(*tasks)
     finally:
@@ -824,7 +910,8 @@ async def app_main():
             task.cancel()
 
 
-try:
-    asyncio.run(app_main())
-finally:
-    asyncio.new_event_loop()
+if __name__ == "__main__":
+    try:
+        asyncio.run(app_main())
+    finally:
+        asyncio.new_event_loop()

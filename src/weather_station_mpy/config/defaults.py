@@ -13,6 +13,7 @@ DEFAULT_CONFIG = {
         "min_heap_for_scan_bytes": 98_000,
         "bssid": "",
         "connect_timeout_ms": 10_000,
+        "transport_error_reconnect_threshold": 3,
         "check_interval_ms": 30_000,
         "startup_retries": 4,
         "startup_retry_ms": 2_000,
@@ -57,7 +58,7 @@ DEFAULT_CONFIG = {
         "enabled_pages": [0, 1, 2, 3, 4, 5],
     },
     "web": {
-        "enabled": True,
+        "enabled": False,
         "port": 80,
     },
     "display": {
