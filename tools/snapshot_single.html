@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ESP32 Display Snapshot</title>
+<style>
+  body { font-family: monospace; background: #111; color: #eee; margin: 20px; }
+  h1 { color: #4af; font-size: 1.1em; }
+  .display { border: 2px solid #4af; border-radius: 6px; padding: 12px; width: 520px; background: #000; }
+  .status { font-size: 0.85em; color: #f44; margin-bottom: 8px; }
+  .page-tab { background: #222; padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 8px; color: #4af; }
+  .big { font-size: 2.2em; font-weight: bold; color: #4af; }
+  .err { color: #f66; }
+  .section { margin-top: 12px; border-top: 1px solid #333; padding-top: 8px; }
+  .section h2 { font-size: 0.9em; color: #aaa; margin: 0 0 6px 0; }
+  table { border-collapse: collapse; font-size: 0.85em; }
+  td, th { padding: 3px 8px; border: 1px solid #333; }
+  th { color: #4af; }
+  .metric { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 0.85em; }
+  .metric span:first-child { width: 60px; }
+  .bar { flex: 1; height: 10px; background: #333; border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 3px; }
+  .val { width: 48px; text-align: right; }
+  .render-lines { margin: 0; padding-left: 20px; font-size: 0.9em; }
+  .render-lines li { margin: 3px 0; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; color: #d6deea; font-size: 0.85em; }
+  .meta { font-size: 0.8em; color: #666; margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1>ESP32 Display Snapshot</h1>
+<div class="display">
+  <div class="status">WiFi: OFFLINE | Net errors: 0 | Time synced: No | Source: derived_from_app_state</div>
+  <div class="page-tab">Active page: 0 - Weather</div>
+
+  <div class="section">
+    <h2>Rendered Display Data (actual on-screen fields)</h2>
+    <ol class='render-lines'><li>00:01:46</li><li>Fri  01 Jan 2000</li><li>+0.0C</li><li>F:0.0 H:0%</li><li>Offline</li><li>Wind:0.0m/s</li><li>offline</li><li>[1/6]</li></ol>
+  </div>
+
+  <div class="section">
+    <h2>Render Details</h2>
+    <pre>{
+  &quot;clock&quot;: &quot;00:01:46&quot;,
+  &quot;condition_text&quot;: &quot;Offline&quot;,
+  &quot;date&quot;: &quot;Fri  01 Jan 2000&quot;,
+  &quot;feels_text&quot;: &quot;F:0.0 H:0%&quot;,
+  &quot;stale&quot;: false,
+  &quot;status_age_label&quot;: &quot;offline&quot;,
+  &quot;temp_text&quot;: &quot;+0.0C&quot;,
+  &quot;wind_text&quot;: &quot;Wind:0.0m/s&quot;
+}</pre>
+  </div>
+
+  <div class="section">
+    <h2>Weather</h2>
+    <div class="big">0.0C</div><div>Offline | Feels 0.0C | Hum 0%</div><div>Wind 0.0 m/s</div>
+  </div>
+
+  <div class="section">
+    <h2>Forecast</h2>
+    <div class='err'>No forecast data</div>
+  </div>
+
+  <div class="section">
+    <h2>PC Metrics</h2>
+    <div class="err">PC metrics not available</div>
+  </div>
+
+  <div class="section">
+    <h2>Solar</h2>
+    <div class="err">Solar disabled or no data</div>
+  </div>
+
+  <div class="section">
+    <h2>ESP Status</h2>
+    <div>RAM free: 60 kB | CPU: 160 MHz | RSSI: 0 dBm</div><div>IP: offline | Uptime: 97 s</div>
+  </div>
+</div>
+<div class="meta">Snapshot taken: 2026-04-30 23:01:05 | Fields: 20</div>
+</body>
+</html>

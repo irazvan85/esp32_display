@@ -10,7 +10,7 @@
     Serial port for the ESP32 (default: COM13)
 
 .PARAMETER Suite
-    hardware | network | app | all  (default: all)
+    hardware | network | app | boot_clean | weather_visible | menu_visible | all  (default: all)
 
 .PARAMETER Timeout
     Seconds to wait per suite before declaring a timeout (default: 90)
@@ -32,7 +32,7 @@
 
 param(
     [string]$Port    = "COM13",
-    [ValidateSet("hardware","network","app","all")]
+    [ValidateSet("hardware","network","app","boot_clean","weather_visible","menu_visible","all")]
     [string]$Suite   = "all",
     [int]   $Timeout = 90,
     [switch]$Verbose

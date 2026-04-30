@@ -10,7 +10,6 @@ except ImportError:
 
 from compat import ticks_ms
 import gc
-import time
 
 
 _DAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
@@ -19,6 +18,7 @@ _DAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 class WeatherService:
     def __init__(self, cfg):
         self._cfg = cfg
+        self.dns_fail_streak = 0
 
     def fetch_current(self):
         if requests is None:
@@ -42,10 +42,11 @@ class WeatherService:
                 raise RuntimeError("OWM current HTTP %s" % response.status_code)
 
             payload = response.json()
-            weather0 = payload.get("weather", [{}])[0]
+            weather0 = self._first_weather(payload)
             main = payload.get("main", {})
             wind = payload.get("wind", {})
 
+            self.dns_fail_streak = 0
             return {
                 "valid": True,
                 "temp_c": float(main.get("temp", 0.0)),
@@ -56,6 +57,11 @@ class WeatherService:
                 "wind_ms": float(wind.get("speed", 0.0)),
                 "fetched_ms": ticks_ms(),
             }
+        except OSError as exc:
+            code = exc.args[0] if exc.args else None
+            if code in (-202, -203):
+                self.dns_fail_streak += 1
+            raise
         finally:
             if response is not None:
                 response.close()
@@ -89,7 +95,13 @@ class WeatherService:
             entries = payload.get("list", [])
             daily = self._aggregate(entries)
             trend = self._extract_today_trend(entries)
+            self.dns_fail_streak = 0
             return daily, trend
+        except OSError as exc:
+            code = exc.args[0] if exc.args else None
+            if code in (-202, -203):
+                self.dns_fail_streak += 1
+            raise
         finally:
             if response is not None:
                 response.close()
@@ -143,7 +155,7 @@ class WeatherService:
 
             date_key = dt_txt[0:10]
             main = entry.get("main", {})
-            weather0 = entry.get("weather", [{}])[0]
+            weather0 = self._first_weather(entry)
             temp = float(main.get("temp", 0.0))
             t_min = float(main.get("temp_min", temp))
             t_max = float(main.get("temp_max", temp))
@@ -178,6 +190,10 @@ class WeatherService:
 
         return out
 
+    def reset_dns_cache(self):
+        """Called by weather_task after repeated DNS failures to signal a reset cycle."""
+        pass  # hook for future DNS cache management
+
     @staticmethod
     def _day_name(date_str):
         # Sakamoto algorithm: 0=Sunday ... 6=Saturday.
@@ -191,7 +207,14 @@ class WeatherService:
         return _DAYS[idx]
 
     @staticmethod
-    def _get(url, timeout_s=5):
+    def _first_weather(item):
+        weather = item.get("weather")
+        if isinstance(weather, (list, tuple)) and weather:
+            return weather[0]
+        return {}
+
+    @staticmethod
+    def _get(url, timeout_s=3):
         """GET with timeout and DNS-failure retry.
 
         Retries up to 3 times on transient DNS errors:
@@ -205,7 +228,6 @@ class WeatherService:
         for attempt in range(3):
             if attempt > 0:
                 gc.collect()
-                time.sleep(0.2)
             try:
                 try:
                     return requests.get(url, timeout=timeout_s)

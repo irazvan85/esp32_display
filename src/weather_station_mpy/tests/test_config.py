@@ -14,6 +14,7 @@ from config.store import (
     _get_path,
     _validate,
 )
+from config.defaults import DEFAULT_CONFIG
 
 
 class TestClone(unittest.TestCase):
@@ -190,6 +191,24 @@ class TestValidate(unittest.TestCase):
         cfg = self._valid_cfg()
         cfg["ui"] = {"theme": "light", "enabled_pages": [0, 2, 4]}
         _validate(cfg)
+
+
+class TestDefaultConfigAssocFailKeys(unittest.TestCase):
+    def test_wifi_assoc_fail_defaults_exist_and_match_expected_values(self):
+        wifi = DEFAULT_CONFIG.get("wifi", {})
+        self.assertIn("assoc_fail_backoff_max_s", wifi)
+        self.assertIn("assoc_fail_startup_quick_retry_ms", wifi)
+        self.assertIn("assoc_fail_long_cooldown_after_n", wifi)
+        self.assertIn("assoc_fail_long_cooldown_s", wifi)
+        self.assertIn("assoc_fail_state_enabled", wifi)
+        self.assertIn("assoc_fail_state_path", wifi)
+
+        self.assertEqual(wifi["assoc_fail_backoff_max_s"], 360)
+        self.assertEqual(wifi["assoc_fail_startup_quick_retry_ms"], 15_000)
+        self.assertEqual(wifi["assoc_fail_long_cooldown_after_n"], 3)
+        self.assertEqual(wifi["assoc_fail_long_cooldown_s"], 720)
+        self.assertFalse(wifi["assoc_fail_state_enabled"])
+        self.assertEqual(wifi["assoc_fail_state_path"], "wifi_assoc_fail_state.json")
 
 
 if __name__ == "__main__":

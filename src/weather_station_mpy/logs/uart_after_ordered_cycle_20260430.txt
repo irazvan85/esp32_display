@@ -11,10 +11,12 @@ MPY: soft reboot
 [WiFi] prealloc status: active
 [WiFi] startup connect attempt 1/4
 [WiFi] Connecting to IOT
-[WiFi] status=1000
+[WiFi] status=1001
 [WiFi] status=15
 [WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
 [WiFi] Connect timeout - offline mode
+[WiFi] startup ASSOC_FAIL #1 - quick cooldown 15s before retry
+[WiFi] radio OFF during backoff
 [WiFi] startup connect attempt 2/4
 [WiFi] Connecting to IOT
 [WiFi] status=1001
@@ -22,24 +24,25 @@ MPY: soft reboot
 [WiFi] startup connect attempt 3/4
 [WiFi] Connecting to IOT
 [WiFi] status=1001
+[WiFi] status=15
+[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
 [WiFi] Connect timeout - offline mode
+[WiFi] startup ASSOC_FAIL #2 - quick cooldown 15s before retry
+[WiFi] radio OFF during backoff
 [WiFi] startup connect attempt 4/4
 [WiFi] Connecting to IOT
 [WiFi] status=1001
 [WiFi] status=15
 [WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
 [WiFi] Connect timeout - offline mode
-[DISP] ST7789 initialized (improved UI)
-[OWM] startup weather unavailable; trying cache
-[WiFi] Connecting to IOT
-[WEB] Disabled in config
-[MEM] Free heap: 69728 bytes
-[ESP] RAM 68kB free  CPU 160MHz
-[Solar] Disabled in config
-[WiFi] status=1001
-[ESP] RAM 66kB free  CPU 160MHz
-[WiFi] Connect timeout - offline mode
-[WiFi] Connecting to IOT
-[WiFi] status=1001
-[ESP] RAM 66kB free  CPU 160MHz
-[WiFi] Connect timeout - offline mode
+[WiFi] startup ASSOC_FAIL detected - deferring retries to wifi_task policy
+Traceback (most recent call last):
+  File "main.py", line 1179, in <module>
+  File "asyncio/core.py", line 1, in run
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "main.py", line 1041, in app_main
+NameError: local variable referenced before assignment
+MicroPython v1.28.0 on 2026-04-06; Generic ESP32 module with ESP32
+Type "help()" for more information.
+>>>

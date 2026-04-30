@@ -7,7 +7,7 @@ Usage
 Options
 -------
     --port    COM port (default: COM13)
-    --suite   hardware | network | app | all  (default: all)
+    --suite   hardware | network | app | boot_clean | weather_visible | menu_visible | all  (default: all)
     --timeout seconds per test suite (default: 90)
     --verbose show full UART log for each suite
 
@@ -64,6 +64,8 @@ _SUITES = {
     "network":    os.path.join(_DEVICE, "test_network.py"),
     "app":        os.path.join(_DEVICE, "test_app.py"),
     "boot_clean": None,
+    "weather_visible": None,
+    "menu_visible": None,
 }
 
 # Patterns for UART log lines
@@ -274,13 +276,31 @@ def main():
 
     for suite_name, suite_path in suites:
         if suite_path is None:
-            # host-side boot_clean test — uses pyserial directly
+            # host-side tests — use pyserial directly
             sys.path.insert(0, _HERE)
-            from test_boot_clean import run_boot_clean
-            boot_timeout = max(args.timeout, 30)  # always give at least 30 s
-            results, crashed = run_boot_clean(
-                args.port, timeout_s=boot_timeout, verbose=args.verbose
-            )
+            if suite_name == "boot_clean":
+                from test_boot_clean import run_boot_clean
+                boot_timeout = max(args.timeout, 30)  # always give at least 30 s
+                results, crashed = run_boot_clean(
+                    args.port, timeout_s=boot_timeout, verbose=args.verbose
+                )
+            elif suite_name == "weather_visible":
+                from test_weather_visible import run_weather_visible
+                weather_timeout = max(args.timeout, 60)  # allow network/cache path
+                results, crashed = run_weather_visible(
+                    args.port, timeout_s=weather_timeout, verbose=args.verbose
+                )
+            elif suite_name == "menu_visible":
+                from test_menu_visible import run_menu_visible
+
+                menu_timeout = max(args.timeout, 90)
+                results, crashed = run_menu_visible(
+                    args.port, timeout_s=menu_timeout, verbose=args.verbose
+                )
+            else:
+                print("%s[ERROR] Unknown host-side suite: %s%s"
+                      % (_RED, suite_name, _RESET))
+                results, crashed = [], True
         else:
             results, crashed = _run_suite(
                 args.port, suite_name, suite_path, args.timeout, args.verbose

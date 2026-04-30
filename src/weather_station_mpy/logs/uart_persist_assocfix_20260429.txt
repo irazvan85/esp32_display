@@ -1,0 +1,43 @@
+[BTN] Page -> 1
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 65808 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[MEM] Free heap: 65664 bytes
+[WiFi] status=1001
+[ESP] RAM 63kB free  CPU 160MHz
+[WiFi] status=15
+[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
+[WiFi] Connect timeout - offline mode
+[WiFi] ASSOC_FAIL #2 - radio off, backoff 240s (next retry in 240s)
+[WiFi] radio OFF during backoff
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 65808 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 65808 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 65808 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz

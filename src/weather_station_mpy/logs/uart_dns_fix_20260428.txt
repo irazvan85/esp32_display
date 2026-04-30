@@ -1,0 +1,30 @@
+[BTN] Page -> 1
+[ESP] RAM 59kB free  CPU 160MHz
+[MEM] Free heap: 60752 bytes
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[PC] fetch error: -203
+[PC] backoff 160s after 4 consecutive failures
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[MEM] Free heap: 60704 bytes
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=5 — retry in 120s
+[OWM] DNS stuck — requesting WiFi reconnect to flush DNS
+[ESP] RAM 59kB free  CPU 160MHz
+[ESP] RAM 59kB free  CPU 160MHz
+[WiFi] forcing reconnect
+[WiFi] Connecting to IOT
+[MEM] Free heap: 61712 bytes
+[WiFi] status=1000
+[ESP] RAM 59kB free  CPU 160MHz
+[WiFi] status=15
+[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
+[WiFi] Connect timeout - offline mode
+[WiFi] reconnect failed — backoff 10s
+[ESP] RAM 59kB free  CPU 160MHz

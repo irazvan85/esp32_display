@@ -2,61 +2,151 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>ESP32 Display Snapshot — 2026-04-27 19:41:04</title>
+<title>ESP32 Menu Sweep Report</title>
 <style>
-  body { font-family: monospace; background: #111; color: #eee; margin: 20px; }
-  h1 { color: #4af; font-size: 1.1em; }
-  .display { border: 2px solid #4af; border-radius: 6px; padding: 12px;
-              width: 480px; background: #000; }
-  .status { font-size: 0.85em; color: #4f4; margin-bottom: 8px; }
-  .page-tab { background: #222; padding: 4px 10px; border-radius: 4px;
-               display: inline-block; margin-bottom: 8px; color: #4af; }
-  .big { font-size: 2.5em; font-weight: bold; color: #4af; }
-  .err { color: #f66; }
-  .section { margin-top: 12px; border-top: 1px solid #333; padding-top: 8px; }
-  .section h2 { font-size: 0.9em; color: #aaa; margin: 0 0 6px 0; }
-  table { border-collapse: collapse; font-size: 0.85em; }
-  td, th { padding: 3px 8px; border: 1px solid #333; }
-  th { color: #4af; }
-  .metric { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 0.85em; }
-  .metric span:first-child { width: 60px; }
-  .bar { flex: 1; height: 10px; background: #333; border-radius: 3px; overflow: hidden; }
-  .fill { height: 100%; border-radius: 3px; }
-  .val { width: 40px; text-align: right; }
-  .meta { font-size: 0.8em; color: #666; margin-top: 16px; }
+  body { font-family: monospace; background: #101216; color: #e8ecf1; margin: 20px; }
+  h1 { color: #4af; font-size: 1.2em; }
+  h2 { color: #9cc5ff; font-size: 1em; }
+  table { border-collapse: collapse; width: 100%; max-width: 840px; margin-bottom: 16px; }
+  th, td { border: 1px solid #2a3342; padding: 6px 8px; text-align: left; }
+  th { background: #1b2330; color: #9cc5ff; }
+  .err { color: #ff8a8a; margin: 10px 0; }
+  .meta { color: #8796ab; font-size: 0.9em; margin-bottom: 10px; }
+  .grid { display: grid; gap: 12px; }
+  .card { border: 1px solid #2a3342; border-radius: 8px; background: #0c1016; padding: 10px; }
+  .card h3 { margin: 0 0 8px 0; color: #9cc5ff; font-size: 0.95em; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; color: #d6deea; font-size: 0.85em; }
 </style>
 </head>
 <body>
-<h1>ESP32 Display Snapshot</h1>
-<div class="display">
-  <div class="status">WiFi: ONLINE &nbsp;|&nbsp; Net errors: 0 &nbsp;|&nbsp; Time synced: Yes</div>
-  <div class="page-tab">Active page: 4 — PC Metrics</div>
+<h1>ESP32 Menu Sweep Report</h1>
+<div class="meta">Generated: 2026-04-30 23:04:45 | Pass: 6/6 | Enabled pages: [0, 1, 2, 3, 4, 5]</div>
 
-  <div class="section">
-    <h2>Page 0 — Current Weather</h2>
-    <div class="err">OWM error: -203</div>
-  </div>
-
-  <div class="section">
-    <h2>Page 2 — Forecast</h2>
-    <div class='err'>No forecast data</div>
-  </div>
-
-  <div class="section">
-    <h2>Page 4 — PC Metrics</h2>
-    <div class="err">PC metrics not available</div>
-  </div>
-
-  <div class="section">
-    <h2>Page 3 — Solar</h2>
-    <div class="err">Solar disabled or no data</div>
-  </div>
-
-  <div class="section">
-    <h2>Page 5 — ESP Status</h2>
-    <div>RAM free: 62 kB &nbsp;CPU: 160 MHz &nbsp;RSSI: -46 dBm</div><div>IP: 192.168.1.31 &nbsp; Uptime: 226 s</div>
-  </div>
-</div>
-<div class="meta">Snapshot taken: 2026-04-27 19:41:04 | Raw JSON fields: 16</div>
+<h2>Summary</h2>
+<table>
+    <tr><th>Requested</th><th>Observed</th><th>Source</th><th>Status</th><th>Details</th></tr>
+  <tr><td>0</td><td>0</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>1</td><td>1</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>2</td><td>2</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>3</td><td>3</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>4</td><td>4</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>5</td><td>5</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr>
+</table>
+<h2>Snapshots</h2>
+<div class="grid"><div class='card'><h3>Page 0 (Weather) -> observed 0 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;clock&quot;: &quot;00:05:24&quot;,
+    &quot;condition_text&quot;: &quot;Offline&quot;,
+    &quot;date&quot;: &quot;Fri  01 Jan 2000&quot;,
+    &quot;feels_text&quot;: &quot;F:0.0 H:0%&quot;,
+    &quot;stale&quot;: false,
+    &quot;status_age_label&quot;: &quot;offline&quot;,
+    &quot;temp_text&quot;: &quot;+0.0C&quot;,
+    &quot;wind_text&quot;: &quot;Wind:0.0m/s&quot;
+  },
+  &quot;page&quot;: 0,
+  &quot;page_label&quot;: &quot;[1/6]&quot;,
+  &quot;page_name&quot;: &quot;Weather&quot;,
+  &quot;render_ms&quot;: 324221,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
+  &quot;time_synced&quot;: false,
+  &quot;visible_text&quot;: [
+    &quot;00:05:24&quot;,
+    &quot;Fri  01 Jan 2000&quot;,
+    &quot;+0.0C&quot;,
+    &quot;F:0.0 H:0%&quot;,
+    &quot;Offline&quot;,
+    &quot;Wind:0.0m/s&quot;,
+    &quot;offline&quot;,
+    &quot;[1/6]&quot;
+  ],
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 1 (Tomorrow) -> observed 1 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;Forecast pending&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;
+  },
+  &quot;page&quot;: 1,
+  &quot;page_label&quot;: &quot;[2/6]&quot;,
+  &quot;page_name&quot;: &quot;Tomorrow&quot;,
+  &quot;render_ms&quot;: 324652,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
+  &quot;time_synced&quot;: false,
+  &quot;visible_text&quot;: [
+    &quot;Forecast pending&quot;,
+    &quot;offline&quot;,
+    &quot;[2/6]&quot;
+  ],
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 2 (5-Day) -> observed 2 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;Forecast pending&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;
+  },
+  &quot;page&quot;: 2,
+  &quot;page_label&quot;: &quot;[3/6]&quot;,
+  &quot;page_name&quot;: &quot;5-Day&quot;,
+  &quot;render_ms&quot;: 325115,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
+  &quot;time_synced&quot;: false,
+  &quot;visible_text&quot;: [
+    &quot;Forecast pending&quot;,
+    &quot;offline&quot;,
+    &quot;[3/6]&quot;
+  ],
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 3 (Solar) -> observed 3 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;Solar pending&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;
+  },
+  &quot;page&quot;: 3,
+  &quot;page_label&quot;: &quot;[4/6]&quot;,
+  &quot;page_name&quot;: &quot;Solar&quot;,
+  &quot;render_ms&quot;: 325581,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
+  &quot;time_synced&quot;: false,
+  &quot;visible_text&quot;: [
+    &quot;Solar pending&quot;,
+    &quot;offline&quot;,
+    &quot;[4/6]&quot;
+  ],
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 4 (PC Metrics) -> observed 4 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;No Network&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;,
+    &quot;subpage&quot;: 0,
+    &quot;uptime&quot;: &quot;00h 00m&quot;
+  },
+  &quot;page&quot;: 4,
+  &quot;page_label&quot;: &quot;[5/6]&quot;,
+  &quot;page_name&quot;: &quot;PC Metrics&quot;,
+  &quot;render_ms&quot;: 326042,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
+  &quot;time_synced&quot;: false,
+  &quot;visible_text&quot;: [
+    &quot;No Network&quot;,
+    &quot;offline&quot;,
+    &quot;[5/6]&quot;
+  ],
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 5 (ESP Status) -> observed 5 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;status_age_label&quot;: &quot;offline&quot;
+  },
+  &quot;page&quot;: 5,
+  &quot;page_label&quot;: &quot;[6/6]&quot;,
+  &quot;page_name&quot;: &quot;ESP Status&quot;,
+  &quot;render_ms&quot;: 326509,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
+  &quot;time_synced&quot;: false,
+  &quot;visible_text&quot;: [
+    &quot;RAM: 60kB free 87kB used&quot;,
+    &quot;CPU: 160MHz Flash:4MB&quot;,
+    &quot;FS: 1504kB/2048kB free&quot;,
+    &quot;IP: offline&quot;,
+    &quot;WiFi: offline&quot;,
+    &quot;Up: 00h 05m&quot;,
+    &quot;offline&quot;,
+    &quot;[6/6]&quot;
+  ],
+  &quot;wifi_online&quot;: false
+}</pre></div></div>
 </body>
 </html>

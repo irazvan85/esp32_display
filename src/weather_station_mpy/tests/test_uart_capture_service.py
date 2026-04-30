@@ -1,4 +1,4 @@
-"""Tests for uart_capture_service — snapshot building and command parsing."""
+"""Tests for uart_capture_service snapshot and command helpers."""
 
 import os
 import sys
@@ -9,47 +9,100 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 class _FakeState:
     """Minimal AppState stand-in for testing."""
-    page = 2
-    enabled_pages = [0, 1, 2, 3, 4, 5]
-    wifi_online = True
-    time_synced = True
-    web_ready = False
-    weather_error = ""
-    net_error_streak = 0
-    weather = {
-        "valid": True, "temp_c": 12.3, "feels_like_c": 10.1,
-        "humidity": 72, "condition": "Rain", "condition_id": 500,
-        "wind_ms": 4.2,
-    }
-    forecast = [
-        {"date": "2026-04-28", "day": "Tue", "temp_min": 8.0, "temp_max": 15.0,
-         "humidity": 70, "condition": "Clouds", "condition_id": 801},
-    ]
-    weather_trend = []
-    solar = {"valid": False, "generation_w": 0.0, "grid_w": 0.0, "battery_soc": 0.0}
-    metrics = {
-        "valid": True, "cpu_pct": 45.0, "ram_pct": 62.0, "disk_pct": 88.0,
-        "temp_c": 55.0, "gpu_pct": None, "gpu_temp_c": None, "uptime_s": 3600, "ts": 0,
-    }
-    esp_status = {"ram_free_kb": 65, "cpu_mhz": 160, "rssi": -55, "ip": "192.168.1.31"}
-    last_weather_fetch_ms = 10000
-    last_metrics_fetch_ms = 5000
-    last_solar_fetch_ms = 0
+
+    def __init__(self):
+        self.page = 2
+        self.enabled_pages = [0, 1, 2, 3, 4, 5]
+        self.metrics_subpage = 0
+        self.page_dirty = False
+        self.status_dirty = False
+        self.metrics_dirty = False
+
+        self.wifi_online = True
+        self.time_synced = True
+        self.web_ready = False
+        self.weather_error = ""
+        self.net_error_streak = 0
+
+        self.weather = {
+            "valid": True,
+            "temp_c": 12.3,
+            "feels_like_c": 10.1,
+            "humidity": 72,
+            "condition": "Rain",
+            "condition_id": 500,
+            "wind_ms": 4.2,
+        }
+        self.forecast = [
+            {
+                "date": "2026-04-28",
+                "day": "Tue",
+                "temp_min": 8.0,
+                "temp_max": 15.0,
+                "humidity": 70,
+                "condition": "Clouds",
+                "condition_id": 801,
+            },
+        ]
+        self.weather_trend = []
+        self.solar = {
+            "valid": False,
+            "generation_w": 0.0,
+            "grid_w": 0.0,
+            "battery_soc": 0.0,
+        }
+        self.metrics = {
+            "valid": True,
+            "cpu_pct": 45.0,
+            "ram_pct": 62.0,
+            "disk_pct": 88.0,
+            "temp_c": 55.0,
+            "gpu_pct": None,
+            "gpu_temp_c": None,
+            "uptime_s": 3600,
+            "ts": 0,
+        }
+        self.esp_status = {
+            "ram_free_kb": 65,
+            "cpu_mhz": 160,
+            "rssi": -55,
+            "ip": "192.168.1.31",
+        }
+        self.last_weather_fetch_ms = 10000
+        self.last_metrics_fetch_ms = 5000
+        self.last_solar_fetch_ms = 0
+        self.display_capture = {
+            "source": "display_render",
+            "page": 2,
+            "visible_text": ["Tue +8/+15 Clouds", "no wx", "[3/6]"],
+        }
 
 
 class TestBuildSnapshot(unittest.TestCase):
     def setUp(self):
         from services.uart_capture_service import _build_snapshot
+
         self._build_snapshot = _build_snapshot
 
     def test_required_keys_present(self):
         data = self._build_snapshot(_FakeState())
         required = {
-            "page", "enabled_pages", "wifi_online", "time_synced",
-            "weather_error", "weather", "forecast", "metrics", "esp_status",
+            "page",
+            "enabled_pages",
+            "metrics_subpage",
+            "display_capture",
+            "local_time",
+            "snapshot_ms",
+            "wifi_online",
+            "time_synced",
+            "weather_error",
+            "weather",
+            "forecast",
+            "metrics",
+            "esp_status",
         }
         for key in required:
-            self.assertIn(key, data, f"Missing key: {key}")
+            self.assertIn(key, data, "Missing key: %s" % key)
 
     def test_page_value_correct(self):
         data = self._build_snapshot(_FakeState())
@@ -79,10 +132,9 @@ class TestBuildSnapshot(unittest.TestCase):
         self.assertEqual(data["net_error_streak"], 0)
 
     def test_snapshot_is_json_serialisable(self):
-        """The snapshot dict must not raise when serialised."""
         import json
+
         data = self._build_snapshot(_FakeState())
-        # Should not raise
         serialised = json.dumps(data)
         self.assertIn("wifi_online", serialised)
 
@@ -90,6 +142,7 @@ class TestBuildSnapshot(unittest.TestCase):
 class TestSafeHelper(unittest.TestCase):
     def setUp(self):
         from services.uart_capture_service import _safe
+
         self._safe = _safe
 
     def test_safe_returns_value_for_simple_types(self):
@@ -100,14 +153,80 @@ class TestSafeHelper(unittest.TestCase):
     def test_safe_returns_default_for_non_serialisable(self):
         class Unserializable:
             pass
+
         result = self._safe(Unserializable(), default="fallback")
         self.assertEqual(result, "fallback")
 
     def test_safe_returns_none_default(self):
         class Bad:
             pass
+
         result = self._safe(Bad())
         self.assertIsNone(result)
+
+
+class TestCommandHelpers(unittest.TestCase):
+    def setUp(self):
+        from services.uart_capture_service import _handle_command
+
+        self._handle_command = _handle_command
+
+    def test_snap_command_returns_snap_action(self):
+        state = _FakeState()
+        action, payload = self._handle_command(state, "!SNAP")
+        self.assertEqual(action, "SNAP")
+        self.assertEqual(payload, "")
+
+    def test_page_command_sets_page_and_dirty_flags(self):
+        state = _FakeState()
+        state.enabled_pages = [0, 2, 4]
+
+        action, payload = self._handle_command(state, "!PAGE 4")
+
+        self.assertEqual(action, "EMIT")
+        self.assertEqual(payload, ">>CMD_OK PAGE 4")
+        self.assertEqual(state.page, 4)
+        self.assertTrue(state.page_dirty)
+        self.assertTrue(state.status_dirty)
+
+    def test_page_command_rejects_disabled_page(self):
+        state = _FakeState()
+        state.enabled_pages = [0, 1, 2]
+
+        action, payload = self._handle_command(state, "!PAGE 4")
+
+        self.assertEqual(action, "EMIT")
+        self.assertEqual(payload, ">>CMD_ERR PAGE disabled")
+        self.assertEqual(state.page, 2)
+
+    def test_next_command_cycles_enabled_pages(self):
+        state = _FakeState()
+        state.page = 4
+        state.enabled_pages = [0, 2, 4]
+
+        action, payload = self._handle_command(state, "!NEXT")
+
+        self.assertEqual(action, "EMIT")
+        self.assertEqual(payload, ">>CMD_OK NEXT 0")
+        self.assertEqual(state.page, 0)
+        self.assertTrue(state.page_dirty)
+
+    def test_subpage_command_sets_metrics_flags(self):
+        state = _FakeState()
+
+        action, payload = self._handle_command(state, "!SUBPAGE 1")
+
+        self.assertEqual(action, "EMIT")
+        self.assertEqual(payload, ">>CMD_OK SUBPAGE 1")
+        self.assertEqual(state.metrics_subpage, 1)
+        self.assertTrue(state.metrics_dirty)
+        self.assertTrue(state.status_dirty)
+
+    def test_unknown_command_returns_error_marker(self):
+        state = _FakeState()
+        action, payload = self._handle_command(state, "!BOGUS")
+        self.assertEqual(action, "EMIT")
+        self.assertEqual(payload, ">>CMD_ERR unknown command")
 
 
 if __name__ == "__main__":

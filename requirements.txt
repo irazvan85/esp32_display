@@ -1,6 +1,20 @@
-# Host-side test dependencies
+# Host-side test and tool dependencies
 # Install with: pip install -r requirements.txt
+#
+# Test coverage requirements (acceptance criteria):
+#   - Device must boot without MemoryError with startup_bootstrap=True
+#     (bootstrap guard >= 80 KB, forecast NOT fetched at startup)
+#   - OWM weather must display on first boot when API key is valid
+#   - DNS failures (-202/-203) must back off exponentially, not loop at 10s
+#   - ENOBUFS must NOT trigger WiFi reconnect (local PCB exhaustion != network failure)
+#   - render_task and button_task must never be blocked >100 ms by service calls
+
+# --- Test runner ---
 pytest>=7.0
+
+# --- PC metrics API (solarmann/pc_metrics_api.py) ---
 psutil>=5.9.0
-# UART display capture tool (tools/capture_display.py)
+
+# --- UART capture tool (tools/capture_display.py) ---
+# Also used by tests/hil/test_boot_clean.py and tests/hil/_diag_wifi_status.py
 pyserial>=3.5

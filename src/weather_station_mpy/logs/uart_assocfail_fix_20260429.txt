@@ -1,0 +1,48 @@
+[WiFi] Connect timeout - offline mode
+[DISP] ST7789 initialized (improved UI)
+[OWM] startup weather unavailable; trying cache
+[WiFi] Connecting to IOT
+[WEB] Disabled in config
+[MEM] Free heap: 69328 bytes
+[ESP] RAM 67kB free  CPU 160MHz
+[Solar] Disabled in config
+[WiFi] status=1001
+[WiFi] status=15
+[ESP] RAM 66kB free  CPU 160MHz
+[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
+[WiFi] Connect timeout - offline mode
+[WiFi] ASSOC_FAIL backoff 120s — giving AP time to clear rate-limit
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[MEM] Free heap: 68336 bytes
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[MEM] Free heap: 68336 bytes
+[ESP] RAM 66kB free  CPU 160MHz
+[WiFi] Connecting to IOT
+[ESP] RAM 67kB free  CPU 160MHz
+[WiFi] status=1001
+[ESP] RAM 66kB free  CPU 160MHz
+[WiFi] Connect timeout - offline mode
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[ESP] RAM 66kB free  CPU 160MHz
+[WiFi] status=15
+[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
+[WiFi] Connect timeout - offline mode
+[WiFi] ASSOC_FAIL backoff 120s — giving AP time to clear rate-limit
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[MEM] Free heap: 68336 bytes
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz
+[ESP] RAM 66kB free  CPU 160MHz

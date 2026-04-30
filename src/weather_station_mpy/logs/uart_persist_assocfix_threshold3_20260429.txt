@@ -1,0 +1,18 @@
+[BTN] Page -> 1
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 66288 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 66288 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 66288 bytes
+[ESP] RAM 64kB free  CPU 160MHz

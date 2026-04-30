@@ -368,5 +368,279 @@ class TestWeatherServiceGetRetry(unittest.TestCase):
             self.ws_module.requests = original
 
 
+class TestWeatherServiceDnsFailStreak(unittest.TestCase):
+    """dns_fail_streak increments on DNS errors, resets on success."""
+
+    def setUp(self):
+        from services.weather_service import WeatherService
+        import services.weather_service as ws_module
+        self.WeatherService = WeatherService
+        self.ws_module = ws_module
+
+    def _cfg(self):
+        return {"weather": {"api_key": "k", "city": "X", "country": "YY"}}
+
+    def _good_response(self):
+        r = MagicMock()
+        r.status_code = 200
+        r.json.return_value = {
+            "weather": [{"main": "Clear", "id": 800}],
+            "main": {"temp": 10.0, "feels_like": 9.0, "humidity": 50},
+            "wind": {"speed": 1.0},
+        }
+        return r
+
+    def test_streak_starts_at_zero(self):
+        svc = self.WeatherService(self._cfg())
+        self.assertEqual(svc.dns_fail_streak, 0)
+
+    def test_streak_increments_on_eai_memory(self):
+        """After exhausting all _get() retries with -203, streak = 1."""
+        original = self.ws_module.requests
+        mock_req = MagicMock()
+        mock_req.get.side_effect = [OSError(-203), OSError(-203), OSError(-203)]
+        self.ws_module.requests = mock_req
+        try:
+            svc = self.WeatherService(self._cfg())
+            with self.assertRaises(OSError):
+                svc.fetch_current()
+            self.assertEqual(svc.dns_fail_streak, 1)
+        finally:
+            self.ws_module.requests = original
+
+    def test_streak_increments_on_eai_fail(self):
+        """After exhausting all _get() retries with -202, streak = 1."""
+        original = self.ws_module.requests
+        mock_req = MagicMock()
+        mock_req.get.side_effect = [OSError(-202), OSError(-202), OSError(-202)]
+        self.ws_module.requests = mock_req
+        try:
+            svc = self.WeatherService(self._cfg())
+            with self.assertRaises(OSError):
+                svc.fetch_current()
+            self.assertEqual(svc.dns_fail_streak, 1)
+        finally:
+            self.ws_module.requests = original
+
+    def test_streak_resets_on_success(self):
+        """Successful fetch resets streak to 0 regardless of previous value."""
+        original = self.ws_module.requests
+        mock_req = MagicMock()
+        # First call fails with DNS, second call succeeds
+        mock_req.get.side_effect = [OSError(-203), OSError(-203), OSError(-203),
+                                    self._good_response()]
+        self.ws_module.requests = mock_req
+        try:
+            svc = self.WeatherService(self._cfg())
+            with self.assertRaises(OSError):
+                svc.fetch_current()
+            self.assertEqual(svc.dns_fail_streak, 1)
+            # Now simulate a successful call
+            mock_req.get.side_effect = [self._good_response()]
+            result = svc.fetch_current()
+            self.assertTrue(result["valid"])
+            self.assertEqual(svc.dns_fail_streak, 0)
+        finally:
+            self.ws_module.requests = original
+
+    def test_streak_accumulates_across_multiple_failures(self):
+        """Each call that fully fails DNS increments by 1."""
+        original = self.ws_module.requests
+        mock_req = MagicMock()
+        self.ws_module.requests = mock_req
+        try:
+            svc = self.WeatherService(self._cfg())
+            # Two rounds of full DNS failures
+            mock_req.get.side_effect = [OSError(-203)] * 3
+            with self.assertRaises(OSError):
+                svc.fetch_current()
+            self.assertEqual(svc.dns_fail_streak, 1)
+
+            mock_req.get.side_effect = [OSError(-202)] * 3
+            with self.assertRaises(OSError):
+                svc.fetch_current()
+            self.assertEqual(svc.dns_fail_streak, 2)
+        finally:
+            self.ws_module.requests = original
+
+    def test_non_dns_error_does_not_increment_streak(self):
+        """OSError(111) ECONNREFUSED must NOT increment dns_fail_streak."""
+        original = self.ws_module.requests
+        mock_req = MagicMock()
+        mock_req.get.side_effect = OSError(111)
+        self.ws_module.requests = mock_req
+        try:
+            svc = self.WeatherService(self._cfg())
+            with self.assertRaises(OSError):
+                svc.fetch_current()
+            self.assertEqual(svc.dns_fail_streak, 0)
+        finally:
+            self.ws_module.requests = original
+
+    def test_reset_dns_cache_is_callable(self):
+        """reset_dns_cache() must exist and be callable without arguments."""
+        svc = self.WeatherService(self._cfg())
+        # Should not raise
+        svc.reset_dns_cache()
+
+
+class TestWeatherServiceGetNoSleep(unittest.TestCase):
+    """_get() must not block via time.sleep — all retries must be CPU-only."""
+
+    def setUp(self):
+        from services.weather_service import WeatherService
+        import services.weather_service as ws_module
+        self.WeatherService = WeatherService
+        self.ws_module = ws_module
+
+    def test_get_does_not_import_time(self):
+        """weather_service module must not import time (no blocking sleep)."""
+        import services.weather_service as ws_module
+        # time must not be a module-level name in weather_service
+        self.assertFalse(hasattr(ws_module, 'time'),
+                         "weather_service must not import 'time' (it would enable time.sleep)")
+
+    def test_default_timeout_is_3s(self):
+        """_get() default timeout_s must be 3 (not 5)."""
+        import inspect
+        from services.weather_service import WeatherService
+        sig = inspect.signature(WeatherService._get)
+        default = sig.parameters.get("timeout_s")
+        self.assertIsNotNone(default, "_get must have timeout_s parameter")
+        self.assertEqual(default.default, 3, "_get default timeout_s must be 3s (not 5s)")
+
+
+class TestWeatherServiceRobustness(unittest.TestCase):
+    """WeatherService handles partial / missing API response fields gracefully."""
+
+    def setUp(self):
+        from services.weather_service import WeatherService
+        import services.weather_service as ws_module
+        self.WeatherService = WeatherService
+        self.ws_module = ws_module
+        self.cfg = {"weather": {"api_key": "k", "city": "X", "country": "YY"}}
+
+    def _mock_get(self, payload, status=200):
+        r = MagicMock()
+        r.status_code = status
+        r.json.return_value = payload
+        mock_req = MagicMock()
+        mock_req.get.return_value = r
+        return mock_req
+
+    def test_missing_weather_array_uses_defaults(self):
+        """Empty 'weather' list in OWM response must not raise."""
+        original = self.ws_module.requests
+        self.ws_module.requests = self._mock_get({"weather": [], "main": {"temp": 5.0}, "wind": {}})
+        try:
+            svc = self.WeatherService(self.cfg)
+            result = svc.fetch_current()
+            self.assertTrue(result["valid"])
+            self.assertEqual(result["condition"], "---")
+        finally:
+            self.ws_module.requests = original
+
+    def test_missing_main_uses_defaults(self):
+        """Missing 'main' key in OWM response must not raise."""
+        original = self.ws_module.requests
+        self.ws_module.requests = self._mock_get(
+            {"weather": [{"main": "Clear", "id": 800}], "main": {}, "wind": {}}
+        )
+        try:
+            svc = self.WeatherService(self.cfg)
+            result = svc.fetch_current()
+            self.assertTrue(result["valid"])
+            self.assertAlmostEqual(result["temp_c"], 0.0)
+            self.assertEqual(result["humidity"], 0)
+        finally:
+            self.ws_module.requests = original
+
+    def test_missing_wind_uses_zero(self):
+        """Missing 'wind' key results in wind_ms=0.0."""
+        original = self.ws_module.requests
+        self.ws_module.requests = self._mock_get(
+            {"weather": [{"main": "Rain", "id": 500}], "main": {"temp": 10.0}, "wind": {}}
+        )
+        try:
+            svc = self.WeatherService(self.cfg)
+            result = svc.fetch_current()
+            self.assertAlmostEqual(result["wind_ms"], 0.0)
+        finally:
+            self.ws_module.requests = original
+
+    def test_http_429_rate_limit_raises_runtime_error(self):
+        """HTTP 429 (rate limit) must raise RuntimeError, not hang."""
+        original = self.ws_module.requests
+        self.ws_module.requests = self._mock_get({}, status=429)
+        try:
+            svc = self.WeatherService(self.cfg)
+            with self.assertRaises(RuntimeError):
+                svc.fetch_current()
+        finally:
+            self.ws_module.requests = original
+
+    def test_http_500_raises_runtime_error(self):
+        """HTTP 500 must raise RuntimeError."""
+        original = self.ws_module.requests
+        self.ws_module.requests = self._mock_get({}, status=500)
+        try:
+            svc = self.WeatherService(self.cfg)
+            with self.assertRaises(RuntimeError):
+                svc.fetch_current()
+        finally:
+            self.ws_module.requests = original
+
+    def test_fetch_current_result_has_fetched_ms(self):
+        """Successful result must include 'fetched_ms' integer key."""
+        original = self.ws_module.requests
+        self.ws_module.requests = self._mock_get({
+            "weather": [{"main": "Clear", "id": 800}],
+            "main": {"temp": 15.0, "feels_like": 14.0, "humidity": 60},
+            "wind": {"speed": 2.0},
+        })
+        try:
+            svc = self.WeatherService(self.cfg)
+            result = svc.fetch_current()
+            self.assertIn("fetched_ms", result)
+            self.assertIsInstance(result["fetched_ms"], int)
+        finally:
+            self.ws_module.requests = original
+
+    def test_forecast_empty_list_returns_empty_daily(self):
+        """OWM forecast with empty 'list' must return empty daily list (no crash)."""
+        original = self.ws_module.requests
+        self.ws_module.requests = self._mock_get({"list": []})
+        try:
+            svc = self.WeatherService(self.cfg)
+            daily, trend = svc.fetch_forecast_bundle()
+            self.assertEqual(daily, [])
+            self.assertEqual(trend, [])
+        finally:
+            self.ws_module.requests = original
+
+
+class TestWeatherBootstrapConfig(unittest.TestCase):
+    """startup_bootstrap must be True in DEFAULT_CONFIG for weather data at boot."""
+
+    def test_startup_bootstrap_enabled_by_default(self):
+        """DEFAULT_CONFIG weather.startup_bootstrap must be True."""
+        from config.defaults import DEFAULT_CONFIG
+        weather_cfg = DEFAULT_CONFIG.get("weather", {})
+        self.assertTrue(
+            weather_cfg.get("startup_bootstrap", False),
+            "DEFAULT_CONFIG['weather']['startup_bootstrap'] must be True — "
+            "without it, weather data is not fetched at boot and OWM DNS "
+            "failures cause persistent -203 errors from a stuck lwIP DNS slot."
+        )
+
+    def test_weather_has_dns_retry_ms(self):
+        """DEFAULT_CONFIG weather must have dns_retry_initial_ms."""
+        from config.defaults import DEFAULT_CONFIG
+        weather_cfg = DEFAULT_CONFIG.get("weather", {})
+        self.assertIn("dns_retry_initial_ms", weather_cfg,
+                      "dns_retry_initial_ms must be in DEFAULT_CONFIG['weather']")
+        self.assertGreater(weather_cfg["dns_retry_initial_ms"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

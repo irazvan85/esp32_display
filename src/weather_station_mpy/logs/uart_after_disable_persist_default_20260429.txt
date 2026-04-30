@@ -1,0 +1,48 @@
+[BTN] Page -> 1
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 66272 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] Connect timeout - offline mode
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] status=15
+[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
+[WiFi] Connect timeout - offline mode
+[WiFi] startup ASSOC_FAIL detected - deferring retries to wifi_task policy
+[DISP] ST7789 initialized (improved UI)
+[OWM] startup weather unavailable; trying cache
+[WiFi] ASSOC_FAIL #1 - radio off, backoff 120s (next retry in 120s)
+[WiFi] radio OFF during backoff
+[WEB] Disabled in config
+[MEM] Free heap: 66512 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[Solar] Disabled in config
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz

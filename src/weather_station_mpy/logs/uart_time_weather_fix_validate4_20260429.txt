@@ -1,3 +1,4 @@
+[BOOT] weather_station_mpy boot.py
 [BOOT] WiFi DMA pool reserved (clean state)
 [BOOT] SPI2 stale state cleared
 
@@ -18,17 +19,17 @@
 [WiFi] ASSOC_FAIL #1 - radio off, backoff 120s (next retry in 120s)
 [WiFi] radio OFF during backoff
 [WEB] Disabled in config
-[MEM] Free heap: 65168 bytes
+[MEM] Free heap: 64528 bytes
 [ESP] RAM 63kB free  CPU 160MHz
 [Solar] Disabled in config
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
-[MEM] Free heap: 64880 bytes
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
-[ESP] RAM 63kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[MEM] Free heap: 64256 bytes
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz
+[ESP] RAM 62kB free  CPU 160MHz

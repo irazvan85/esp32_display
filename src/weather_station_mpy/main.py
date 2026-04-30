@@ -8,6 +8,11 @@ kept simple while parity work continues.
 import gc
 
 try:
+    json = __import__("ujson")
+except ImportError:
+    import json
+
+try:
     asyncio = __import__("uasyncio")
 except ImportError:
     import asyncio
@@ -32,6 +37,7 @@ from compat import mem_free, mem_alloc, ticks_diff, ticks_ms
 from config.store import ConfigNotReadyError, load_config
 from services.time_service import TimeService
 from services.wifi_service import WifiService
+from ui.display_manager import DisplayManager
 
 
 def _normalize_enabled_pages(value):
@@ -93,13 +99,11 @@ def _is_transport_error(exc):
 
 
 def _is_enobufs(exc):
-    if len(exc.args) > 0:
-        code = exc.args[0]
-        if code == 105:
-            return True
-        text = str(exc).lower()
-        if "enobufs" in text or "no buffer" in text:
-            return True
+    if len(exc.args) > 0 and exc.args[0] == 105:
+        return True
+    text = str(exc).lower()
+    if "enobufs" in text or "no buffer" in text:
+        return True
     return False
 
 
@@ -111,6 +115,118 @@ def _schedule_transport_reconnect(state, cfg):
     if state.net_error_streak >= threshold and not state.force_wifi_reconnect:
         state.force_wifi_reconnect = True
         print("[WiFi] scheduling reconnect after transport errors")
+
+
+def _assoc_fail_state_cfg(cfg):
+    wifi_cfg = cfg.get("wifi", {}) if isinstance(cfg, dict) else {}
+
+    enabled = bool(wifi_cfg.get("assoc_fail_state_enabled", False))
+    path = wifi_cfg.get("assoc_fail_state_path", "wifi_assoc_fail_state.json")
+    if not isinstance(path, str) or not path:
+        path = "wifi_assoc_fail_state.json"
+
+    return enabled, path
+
+
+def _assoc_fail_state_load_count(cfg):
+    enabled, path = _assoc_fail_state_cfg(cfg)
+    if not enabled:
+        return 0
+
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except OSError:
+        return 0
+    except Exception as exc:
+        print("[WiFi] ASSOC_FAIL state load error: %s" % exc)
+        return 0
+
+    if not isinstance(payload, dict):
+        return 0
+
+    try:
+        count = int(payload.get("assoc_fail_count", 0))
+    except Exception:
+        return 0
+
+    if count < 0:
+        return 0
+    if count > 1000:
+        return 1000
+    return count
+
+
+def _assoc_fail_state_save_count(cfg, count):
+    enabled, path = _assoc_fail_state_cfg(cfg)
+    if not enabled:
+        return False
+
+    try:
+        count = int(count)
+    except Exception:
+        count = 0
+
+    if count < 0:
+        count = 0
+    if count > 1000:
+        count = 1000
+
+    payload = {
+        "v": 1,
+        "assoc_fail_count": count,
+    }
+
+    try:
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+        return True
+    except Exception as exc:
+        print("[WiFi] ASSOC_FAIL state save error: %s" % exc)
+        return False
+
+
+def _assoc_fail_state_clear(cfg):
+    _assoc_fail_state_save_count(cfg, 0)
+
+
+def _assoc_fail_backoff_ms(assoc_fail_count, cfg):
+    wifi_cfg = cfg.get("wifi", {})
+
+    backoff_cap_s = int(wifi_cfg.get("assoc_fail_backoff_max_s", 360))
+    if backoff_cap_s < 120:
+        backoff_cap_s = 120
+
+    long_after_n = int(wifi_cfg.get("assoc_fail_long_cooldown_after_n", 3))
+    if long_after_n < 2:
+        long_after_n = 2
+
+    long_cooldown_s = int(wifi_cfg.get("assoc_fail_long_cooldown_s", 720))
+    if long_cooldown_s < backoff_cap_s:
+        long_cooldown_s = backoff_cap_s
+
+    stepped_s = min(120 * assoc_fail_count, backoff_cap_s)
+    if assoc_fail_count >= long_after_n:
+        return long_cooldown_s * 1000, True
+
+    return stepped_s * 1000, False
+
+
+async def _handle_assoc_fail_backoff(state, wifi_svc, cfg, assoc_fail_count):
+    backoff_ms, is_long = _assoc_fail_backoff_ms(assoc_fail_count, cfg)
+    if is_long:
+        print(
+            "[WiFi] ASSOC_FAIL #%d - radio off, quiet window %ds (next retry in %ds)"
+            % (assoc_fail_count, backoff_ms // 1000, backoff_ms // 1000)
+        )
+    else:
+        print(
+            "[WiFi] ASSOC_FAIL #%d - radio off, backoff %ds (next retry in %ds)"
+            % (assoc_fail_count, backoff_ms // 1000, backoff_ms // 1000)
+        )
+    state.status_dirty = True
+    wifi_svc.radio_off()
+    await asyncio.sleep_ms(backoff_ms)
 
 
 async def button_task(state):
@@ -150,12 +266,27 @@ async def button_task(state):
         await asyncio.sleep_ms(20)
 
 
-async def wifi_task(state, wifi_svc, cfg, time_svc):
+async def wifi_task(
+    state,
+    wifi_svc,
+    cfg,
+    time_svc,
+    initial_assoc_fail_count=0,
+    initial_assoc_fail_pending=False,
+):
     wifi_check_ms = int(cfg["wifi"].get("check_interval_ms", 30_000))
     wifi_offline_retry_ms = int(cfg["wifi"].get("offline_retry_ms", 5_000))
     _reconnect_backoff_ms = wifi_offline_retry_ms
+    _assoc_fail_count = initial_assoc_fail_count if initial_assoc_fail_count > 0 else 0
+    _assoc_fail_pending = bool(initial_assoc_fail_pending)
 
     while True:
+        if _assoc_fail_pending and not state.wifi_online:
+            _assoc_fail_pending = False
+            _assoc_fail_state_save_count(cfg, _assoc_fail_count)
+            await _handle_assoc_fail_backoff(state, wifi_svc, cfg, _assoc_fail_count)
+            continue
+
         force_requested = state.force_wifi_reconnect
         online = await wifi_svc.ensure_connected(force=force_requested)
         changed = online != state.wifi_online
@@ -167,8 +298,15 @@ async def wifi_task(state, wifi_svc, cfg, time_svc):
             if online:
                 state.net_error_streak = 0
                 _reconnect_backoff_ms = wifi_offline_retry_ms
+                _assoc_fail_count = 0
+                _assoc_fail_state_clear(cfg)
                 print("[WiFi] reconnect healed transport path")
             else:
+                if wifi_svc.assoc_fail:
+                    _assoc_fail_count += 1
+                    _assoc_fail_state_save_count(cfg, _assoc_fail_count)
+                    await _handle_assoc_fail_backoff(state, wifi_svc, cfg, _assoc_fail_count)
+                    continue
                 _reconnect_backoff_ms = min(_reconnect_backoff_ms * 2, 120_000)
                 print("[WiFi] reconnect failed — backoff %ds" % (_reconnect_backoff_ms // 1000))
                 state.status_dirty = True
@@ -180,15 +318,21 @@ async def wifi_task(state, wifi_svc, cfg, time_svc):
             state.status_dirty = True
             state.page_dirty = True
             if online:
+                _assoc_fail_count = 0
+                _assoc_fail_state_clear(cfg)
                 state.time_synced = await time_svc.sync_ntp()
 
         if online:
             await asyncio.sleep_ms(wifi_check_ms)
+        elif wifi_svc.assoc_fail:
+            _assoc_fail_count += 1
+            _assoc_fail_state_save_count(cfg, _assoc_fail_count)
+            await _handle_assoc_fail_backoff(state, wifi_svc, cfg, _assoc_fail_count)
         else:
             await asyncio.sleep_ms(wifi_offline_retry_ms)
 
 
-async def weather_task(state, weather_svc, cfg):
+async def weather_task(state, weather_svc, cache_svc, cfg):
     if not bool(cfg["weather"].get("enabled", True)):
         print("[OWM] Disabled in config")
         return
@@ -196,6 +340,10 @@ async def weather_task(state, weather_svc, cfg):
     refresh_ms = int(cfg["weather"].get("refresh_ms", 600_000))
     retry_ms = int(cfg["weather"].get("retry_ms", 30_000))
     offline_retry_ms = int(cfg["weather"].get("offline_retry_ms", 5_000))
+
+    # Escalating DNS failure backoff: 10s → 30s → 60s → 120s cap
+    _dns_fail_streak = 0
+    _DNS_RETRY_SCHEDULE = (10_000, 30_000, 60_000, 120_000)
 
     # If startup bootstrap already seeded weather, defer the first periodic
     # fetch to avoid a back-to-back HTTP+parse that exhausts fragmented heap.
@@ -218,7 +366,18 @@ async def weather_task(state, weather_svc, cfg):
             state.status_dirty = True
             state.weather_error = ""
             state.net_error_streak = 0
+            _dns_fail_streak = 0
+
             state.last_weather_fetch_ms = weather["fetched_ms"]
+
+            try:
+                cache_svc.save(
+                    weather=state.weather,
+                    forecast=state.forecast,
+                    trend=state.weather_trend,
+                )
+            except Exception as exc:
+                print("[OWM] cache save error: %s" % exc)
 
             print(
                 "[OWM] %.1fC %s Hum:%d%%"
@@ -230,20 +389,41 @@ async def weather_task(state, weather_svc, cfg):
             )
         except (OSError, ValueError, RuntimeError) as exc:
             _err_code = exc.args[0] if isinstance(exc, OSError) and exc.args else None
-            if _err_code == -203:
-                print("[OWM] DNS memory error (EAI_MEMORY) — GC and retry in 10s")
-            elif _err_code == -202:
-                print("[OWM] DNS failure (EAI_FAIL) — retry in 10s")
+            _is_dns_err = _err_code in (-202, -203)
+
+            if _is_dns_err:
+                _dns_fail_streak += 1
+                _retry_idx = min(_dns_fail_streak - 1, len(_DNS_RETRY_SCHEDULE) - 1)
+                _owm_retry_ms = _DNS_RETRY_SCHEDULE[_retry_idx]
+                if _err_code == -203:
+                    print(
+                        "[OWM] DNS memory error (EAI_MEMORY) streak=%d — retry in %ds"
+                        % (_dns_fail_streak, _owm_retry_ms // 1000)
+                    )
+                else:
+                    print(
+                        "[OWM] DNS failure (EAI_FAIL) streak=%d — retry in %ds"
+                        % (_dns_fail_streak, _owm_retry_ms // 1000)
+                    )
+                # After 5 consecutive DNS failures the WiFi stack / DNS resolver
+                # is likely stuck; force a full WiFi reconnect to flush the state.
+                if _dns_fail_streak >= 5 and not state.force_wifi_reconnect:
+                    print("[OWM] DNS stuck — requesting WiFi reconnect to flush DNS")
+                    state.force_wifi_reconnect = True
+                    _dns_fail_streak = 0
             else:
+                _owm_retry_ms = retry_ms
                 print("[OWM] fetch error: %s" % exc)
+
             state.weather_error = str(exc)
             state.status_dirty = True
             state.weather_dirty = True
+
             if _is_transport_error(exc) and not _is_enobufs(exc):
                 state.net_error_streak += 1
                 _schedule_transport_reconnect(state, cfg)
+
             gc.collect()
-            _owm_retry_ms = 10_000 if _err_code in (-202, -203) else retry_ms
             await asyncio.sleep_ms(_owm_retry_ms)
             continue
 
@@ -256,6 +436,15 @@ async def weather_task(state, weather_svc, cfg):
             state.weather_trend = trend
             state.forecast_dirty = True
             state.last_forecast_fetch_ms = ticks_ms()
+
+            try:
+                cache_svc.save(
+                    weather=state.weather,
+                    forecast=state.forecast,
+                    trend=state.weather_trend,
+                )
+            except Exception as exc:
+                print("[OWM] cache save error: %s" % exc)
         except (OSError, ValueError, RuntimeError) as exc:
             print("[OWM] forecast error: %s" % exc)
             gc.collect()
@@ -363,11 +552,10 @@ async def render_task(state, display, time_svc, cfg):
 
     while True:
         now_local = None
-        if state.time_synced:
-            try:
-                now_local = time_svc.now_localtime()
-            except OSError:
-                now_local = None
+        try:
+            now_local = time_svc.now_localtime()
+        except OSError:
+            now_local = None
 
         if display.ready:
             try:
@@ -715,7 +903,6 @@ async def app_main():
         cfg = load_config("config.json")
     except ConfigNotReadyError as exc:
         print("[CFG] %s" % exc)
-        from ui.display_manager import DisplayManager
         display = DisplayManager()
         display.init()
         display.draw_config_error(str(exc))
@@ -747,30 +934,70 @@ async def app_main():
     # Initial connectivity attempts.
     startup_retries = int(cfg["wifi"].get("startup_retries", 4))
     startup_retry_ms = int(cfg["wifi"].get("startup_retry_ms", 2_000))
+    startup_assoc_retry_ms = int(cfg["wifi"].get("assoc_fail_startup_quick_retry_ms", 15_000))
+    if startup_assoc_retry_ms < 3_000:
+        startup_assoc_retry_ms = 3_000
     online = False
-    for attempt in range(startup_retries):
-        print("[WiFi] startup connect attempt %d/%d" % (attempt + 1, startup_retries))
-        online = await wifi_svc.ensure_connected()
-        if online:
-            break
-        if attempt < startup_retries - 1:
-            await asyncio.sleep_ms(startup_retry_ms)
+    startup_assoc_fail_count = _assoc_fail_state_load_count(cfg)
+    startup_assoc_fail_pending = startup_assoc_fail_count > 0
+    if startup_assoc_fail_pending:
+        print(
+            "[WiFi] persisted ASSOC_FAIL #%d - deferring startup connect to wifi_task policy"
+            % startup_assoc_fail_count
+        )
+    else:
+        for attempt in range(startup_retries):
+            print("[WiFi] startup connect attempt %d/%d" % (attempt + 1, startup_retries))
+            online = await wifi_svc.ensure_connected(allow_scan_retry=False)
+            if online:
+                break
+            if wifi_svc.assoc_fail:
+                startup_assoc_fail_count += 1
+                _assoc_fail_state_save_count(cfg, startup_assoc_fail_count)
+                if attempt < startup_retries - 1:
+                    print(
+                        "[WiFi] startup ASSOC_FAIL #%d - quick cooldown %ds before retry"
+                        % (startup_assoc_fail_count, startup_assoc_retry_ms // 1000)
+                    )
+                    wifi_svc.radio_off()
+                    await asyncio.sleep_ms(startup_assoc_retry_ms)
+                    continue
+
+                startup_assoc_fail_pending = True
+                print("[WiFi] startup ASSOC_FAIL detected - deferring retries to wifi_task policy")
+                break
+            if attempt < startup_retries - 1:
+                await asyncio.sleep_ms(startup_retry_ms)
+
+    if online:
+        startup_assoc_fail_count = 0
+        startup_assoc_fail_pending = False
+        _assoc_fail_state_clear(cfg)
 
     synced = await time_svc.sync_ntp() if online else False
 
-    # --- Startup weather bootstrap (before display init to avoid -202/-203) ---
+    # --- Startup weather bootstrap (BEFORE display init) ---
+    # OWM bootstrap must happen before DisplayManager.init() because
+    # DisplayManager's SPI DMA buffers and lwIP's MEMP_NETDB DNS allocator
+    # both draw from the same DMA-capable internal RAM region on ESP32.
+    # After display init, DNS queries fail with EAI_MEMORY (-203) because
+    # there is no DMA-capable contiguous block left for the DNS query struct.
+    # Doing OWM first avoids this: DNS succeeds while DMA memory is plentiful,
+    # and display init runs after gc.collect() frees the OWM transient allocs.
     startup_weather = None
     startup_forecast = None
     startup_trend = None
+    _bootstrap_dns_failed = False
 
     weather_enabled = bool(cfg["weather"].get("enabled", True))
     startup_bootstrap_enabled = bool(cfg["weather"].get("startup_bootstrap", False))
 
     if online and weather_enabled and startup_bootstrap_enabled:
         _boot_heap = gc.mem_free()
-        if _boot_heap < 70_000:
-            print("[OWM] startup bootstrap skipped (strict memory guard)")
+        if _boot_heap < 55_000:
+            print("[OWM] startup bootstrap skipped — heap %d < 55000" % _boot_heap)
         else:
+            gc.collect()
             from services.weather_service import WeatherService as _BootWX
             _wx = _BootWX(cfg)
             for _attempt in range(3):
@@ -783,36 +1010,70 @@ async def app_main():
                         % (startup_weather["temp_c"], startup_weather["condition"])
                     )
                     break
+                except OSError as _exc:
+                    _exc_code = _exc.args[0] if _exc.args else None
+                    print("[OWM] startup fetch error: %s" % _exc)
+                    gc.collect()
+                    if _exc_code in (-202, -203):
+                        print("[OWM] DNS stuck at bootstrap — skipping remaining attempts")
+                        _bootstrap_dns_failed = True
+                        break
                 except Exception as _exc:
                     print("[OWM] startup fetch error: %s" % _exc)
                     gc.collect()
-            if startup_weather is not None:
-                _heap2 = gc.mem_free()
-                if _heap2 < 55_000:
-                    print("[OWM] startup forecast skipped (memory guard)")
-                else:
-                    try:
-                        startup_forecast, startup_trend = _wx.fetch_forecast_bundle()
-                        gc.collect()
-                    except Exception as _exc:
-                        print("[OWM] startup forecast error: %s" % _exc)
-                        gc.collect()
             del _wx, _BootWX
             gc.collect()
     elif online and weather_enabled and not startup_bootstrap_enabled:
         print("[OWM] startup bootstrap disabled (config)")
 
-    if gc.mem_free() < 75_000:
-        startup_weather = None
-        startup_forecast = None
-        startup_trend = None
-        print("[OWM] bootstrap payload dropped (low heap before display)")
-        gc.collect()
-
-    from ui.display_manager import DisplayManager
+    # Init display AFTER OWM bootstrap. gc.collect() above freed the OWM
+    # transient socket+JSON allocations (~7 KB). Display init then has access
+    # to those freed blocks for its SPI DMA buffer allocation.
+    # DisplayManager module is imported at file load time while heap is clean.
+    # Its heavy dependencies (st7789 + fonts) are lazy-loaded inside init/text
+    # helpers, which avoids low-heap import crashes in app_main.
+    # MemoryError fallback: if OWM fragmented the heap badly, retry after an
+    # extra gc.collect() — the allocator can coalesce adjacent freed blocks
+    # on the second pass.
     display = DisplayManager()
-    display.init()
+    gc.collect()
+    try:
+        display.init()
+    except MemoryError:
+        gc.collect()
+        display.init()
     display.draw_boot("Booting...")
+    gc.collect()
+
+    from services.weather_cache_service import WeatherCacheService
+
+    weather_cache_svc = WeatherCacheService("weather_cache.json")
+    if weather_enabled and startup_weather is None:
+        print("[OWM] startup weather unavailable; trying cache")
+        cached = weather_cache_svc.load()
+        if cached is not None:
+            cached_weather = cached.get("weather")
+            if cached_weather is not None and bool(cached_weather.get("valid", False)):
+                cached_weather["fetched_ms"] = ticks_ms()
+                startup_weather = cached_weather
+                startup_forecast = cached.get("forecast") or []
+                startup_trend = cached.get("trend") or []
+                print("[OWM] startup weather restored from cache")
+
+        # If startup is offline and no valid cache exists, expose a clear
+        # placeholder instead of a blank weather panel.
+        if startup_weather is None and not online:
+            startup_weather = {
+                "valid": True,
+                "temp_c": 0.0,
+                "feels_like_c": 0.0,
+                "humidity": 0,
+                "condition": "Offline",
+                "condition_id": 800,
+                "wind_ms": 0.0,
+                "fetched_ms": 0,
+            }
+            print("[OWM] startup weather fallback: offline placeholder")
 
     gc.collect()
     # reclaim heap before opening web listener socket
@@ -822,7 +1083,7 @@ async def app_main():
     # HTTP connections exhausting the lwIP PCB pool.
     _web_server_sock = None
     _web_port = int(cfg.get("web", {}).get("port", 80))
-    if bool(cfg.get("web", {}).get("enabled", True)) and online:
+    if bool(cfg.get("web", {}).get("enabled", False)) and online:
         try:
             try:
                 import usocket as _ws
@@ -858,7 +1119,13 @@ async def app_main():
     state.metrics_stale_ms = int(cfg.get("metrics", {}).get("stale_ms", 120_000))
     state.wifi_online = online
     state.time_synced = synced
-    state.web_ready = _web_server_sock is not None or not bool(cfg.get("web", {}).get("enabled", True))
+    state.web_ready = _web_server_sock is not None or not bool(cfg.get("web", {}).get("enabled", False))
+
+    # If bootstrap DNS failed, the lwIP DNS table is full/stuck.
+    # Schedule an immediate WiFi reconnect so wifi_task flushes the lwIP stack
+    # on its first cycle (~5s) instead of waiting for weather_task's 220s backoff.
+    if _bootstrap_dns_failed:
+        print("[OWM] Bootstrap DNS failed — weather_task will retry with backoff")
 
     if startup_weather is not None:
         state.weather = startup_weather
@@ -890,12 +1157,21 @@ async def app_main():
 
     tasks = [
         asyncio.create_task(button_task(state)),
-        asyncio.create_task(wifi_task(state, wifi_svc, cfg, time_svc)),
+        asyncio.create_task(
+            wifi_task(
+                state,
+                wifi_svc,
+                cfg,
+                time_svc,
+                initial_assoc_fail_count=startup_assoc_fail_count,
+                initial_assoc_fail_pending=startup_assoc_fail_pending,
+            )
+        ),
         asyncio.create_task(render_task(state, display, time_svc, cfg)),
         asyncio.create_task(web_config_task(state, cfg, wifi_svc, _web_server_sock)),
         asyncio.create_task(memory_log_task()),
         asyncio.create_task(esp_status_task(state, wifi_svc)),
-        asyncio.create_task(weather_task(state, weather_svc, cfg)),
+        asyncio.create_task(weather_task(state, weather_svc, weather_cache_svc, cfg)),
         asyncio.create_task(solar_task(state, solar_svc, cfg)),
         asyncio.create_task(metrics_task(state, metrics_svc, cfg)),
     ]

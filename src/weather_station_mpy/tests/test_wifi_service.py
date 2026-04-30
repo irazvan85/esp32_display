@@ -497,6 +497,75 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
         finally:
             wf_module.asyncio = original_asyncio
 
+    async def test_status15_retries_with_scanned_bssid(self):
+        from services.wifi_service import WifiService
+        import services.wifi_service as wf_module
+
+        svc = WifiService.__new__(WifiService)
+        svc._cfg = {
+            "wifi": {
+                "ssid": "home",
+                "password": "secret",
+                "bssid": "",
+                "connect_timeout_ms": 80,
+            }
+        }
+
+        mock_wlan = MagicMock()
+
+        second_attempt_status = {"idx": 0}
+
+        def _status():
+            # First connect attempt: force ASSOC_FAIL path.
+            if mock_wlan.connect.call_count < 2:
+                return 15
+
+            # Second connect attempt: move to connecting then got-ip states.
+            seq = (1001, 1010)
+            i = second_attempt_status["idx"]
+            if i < len(seq):
+                second_attempt_status["idx"] += 1
+                return seq[i]
+            return 1010
+
+        second_attempt_conn_checks = {"n": 0}
+
+        def _isconnected():
+            # Never connected on first attempt.
+            if mock_wlan.connect.call_count < 2:
+                return False
+            # Connected on second attempt after a short status poll window.
+            second_attempt_conn_checks["n"] += 1
+            return second_attempt_conn_checks["n"] >= 3
+
+        mock_wlan.status.side_effect = _status
+        mock_wlan.isconnected.side_effect = _isconnected
+        mock_wlan.ifconfig.return_value = ("192.168.1.50", "", "", "")
+        mock_wlan.scan.return_value = [
+            (b"home", bytes([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]), 6, -52, 4, 0),
+            (b"home", bytes([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]), 1, -80, 4, 0),
+        ]
+        svc._wlan = mock_wlan
+
+        original_asyncio = wf_module.asyncio
+        try:
+            async def _sleep_ms(_ms):
+                await std_asyncio.sleep(0)
+
+            mock_aio = MagicMock()
+            mock_aio.sleep_ms = _sleep_ms
+            wf_module.asyncio = mock_aio
+
+            result = await svc.ensure_connected()
+            self.assertTrue(result)
+            self.assertEqual(mock_wlan.connect.call_count, 2)
+            self.assertEqual(
+                mock_wlan.connect.call_args_list[1],
+                call("home", "secret", bssid=bytes([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF])),
+            )
+        finally:
+            wf_module.asyncio = original_asyncio
+
 
 if __name__ == "__main__":
     unittest.main()

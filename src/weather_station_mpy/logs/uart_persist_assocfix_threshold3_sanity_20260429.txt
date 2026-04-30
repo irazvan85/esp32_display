@@ -1,0 +1,25 @@
+
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] persisted ASSOC_FAIL #3 - deferring startup connect to wifi_task policy
+[DISP] ST7789 initialized (improved UI)
+[OWM] startup weather unavailable; trying cache
+[WiFi] ASSOC_FAIL #3 - radio off, quiet window 720s (next retry in 720s)
+[WiFi] radio OFF during backoff
+[WEB] Disabled in config
+[MEM] Free heap: 66560 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[Solar] Disabled in config
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz

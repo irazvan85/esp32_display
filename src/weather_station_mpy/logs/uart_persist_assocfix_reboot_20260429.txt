@@ -1,0 +1,62 @@
+[BTN] Page -> 2
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 65776 bytes
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] WiFi DMA pool reserved (clean state)
+[BOOT] SPI2 stale state cleared
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] prealloc status: active
+[WiFi] persisted ASSOC_FAIL #3 - deferring startup connect to wifi_task policy
+[DISP] ST7789 initialized (improved UI)
+[OWM] startup weather unavailable; trying cache
+[WiFi] ASSOC_FAIL #3 - radio off, backoff 360s (next retry in 360s)
+[WiFi] radio OFF during backoff
+[WEB] Disabled in config
+[MEM] Free heap: 66512 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[Solar] Disabled in config
+[BTN] Page -> 1
+[BTN] Page -> 2
+[BTN] Page -> 3
+[ESP] RAM 64kB free  CPU 160MHz
+[BTN] Page -> 4
+[BTN] Page -> 5
+[BTN] Page -> 0
+[BTN] Page -> 1
+[BTN] Page -> 2
+[BTN] Page -> 3
+[BTN] Page -> 4
+[BTN] Page -> 5
+[BTN] Page -> 0
+[BTN] Page -> 1
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 66176 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz
+[MEM] Free heap: 66176 bytes
+[ESP] RAM 64kB free  CPU 160MHz
+[ESP] RAM 64kB free  CPU 160MHz

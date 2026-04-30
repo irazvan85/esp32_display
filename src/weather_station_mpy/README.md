@@ -93,6 +93,19 @@ mpremote connect COM13 fs cat :/config.json
 4. Edit `config.json` on the device and replace placeholders.
 5. Reboot to start normal operation.
 
+## Boot Sequence
+
+The correct boot order is required to avoid lwIP PCB/DNS memory exhaustion:
+
+1. WiFi connect (`startup_retries` attempts)
+2. NTP sync
+3. OWM startup bootstrap (**before** display init — preserves DMA memory for DNS)
+4. `gc.collect()` to free OWM transient allocations
+5. `DisplayManager.init()` (SPI DMA buffer allocation)
+6. Weather cache service (loads fallback data if OWM failed)
+7. Web socket pre-bind (if `web.enabled`)
+8. Async tasks start
+
 ## Config notes
 
 - `solar.enabled` defaults to `false` to avoid blocking startup for users without SolarMan credentials.
@@ -106,7 +119,7 @@ mpremote connect COM13 fs cat :/config.json
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `web.enabled` | `true` | Enable HTTP config UI |
+| `web.enabled` | `false` | Enable HTTP config UI (disabled by default — enabling causes lwIP PCB exhaustion on WiFi-only boards) |
 | `web.port` | `80` | HTTP server port |
 | `ui.theme` | `"retro"` | Display color theme (`retro`, `light`, `high_contrast`) |
 | `ui.enabled_pages` | `[0,1,2,3,4,5]` | Pages to cycle through via button |
@@ -114,6 +127,9 @@ mpremote connect COM13 fs cat :/config.json
 | `metrics.enabled` | `false` | Enable PC metrics polling |
 | `wifi.startup_retries` | `4` | Boot-time WiFi connect attempts |
 | `wifi.startup_retry_ms` | `2000` | Delay (ms) between boot WiFi retries |
+| `wifi.assoc_fail_backoff_max_s` | `360` | Max stepped ASSOC_FAIL cooldown (seconds) before long quiet window |
+| `wifi.assoc_fail_long_cooldown_after_n` | `4` | Consecutive ASSOC_FAIL threshold that triggers long quiet window |
+| `wifi.assoc_fail_long_cooldown_s` | `720` | Long radio-off quiet window duration in seconds |
 
 ## WiFi behavior
 
@@ -135,8 +151,18 @@ On this board/firmware, importing `ui.display_manager` before the initial WiFi c
 - `app_main` runs a startup connect retry loop before display init.
 - `wifi.startup_retries` (default `4`) controls startup connect attempts.
 - `wifi.startup_retry_ms` (default `2000`) controls delay between startup attempts.
+- Startup connect exits early on status `15` (`ASSOC_FAIL`) and defers retries to `wifi_task` lockout-safe policy.
 - `wifi_task` uses `wifi.offline_retry_ms` (default `5000`) while offline.
 - Online WiFi health cadence remains `wifi.check_interval_ms`.
+
+### [WiFi] ASSOC_FAIL lockout-safe retry policy
+
+- `status=15` means `ASSOC_FAIL`: the AP rejected station association, commonly due to temporary anti-spam/rate-limit behavior.
+- On ASSOC_FAIL, the firmware powers WiFi radio fully off and waits before retrying, so the ESP32 does not keep refreshing AP lockout timers.
+- Cooldown escalates by consecutive failures: `120s`, `240s`, `360s` (capped by `wifi.assoc_fail_backoff_max_s`).
+- After `wifi.assoc_fail_long_cooldown_after_n` consecutive ASSOC_FAIL events (default `4`), retries switch to a longer quiet window of `wifi.assoc_fail_long_cooldown_s` (default `720s`).
+- If startup sees ASSOC_FAIL, boot retries stop early and `wifi_task` starts with pending ASSOC_FAIL state to apply the same radio-off cooldown first.
+- This protects against AP lockout amplification and improves recovery on APs that temporarily reject rapid re-association attempts.
 
 ## Runtime Web Configuration
 
@@ -203,6 +229,74 @@ Practical guidance:
 - `fetch_forecast_bundle()` returns `(daily_forecast, today_trend)`.
 - `today_trend` includes up to 8 points with `hour`, `temp_c`, and `precip_mm`.
 - `fetch_forecast()` is retained for backward-compatible callers.
+
+### [OWM] Weather cache fallback
+
+To improve startup reliability when upstream weather is temporarily unavailable, the app keeps a local weather cache in `weather_cache.json` on the device filesystem.
+
+- Purpose: persist the latest known-good current weather and forecast payloads for fallback rendering.
+- Cache write timing: the cache is updated after successful weather and forecast fetch/parse cycles.
+- Cache restore timing: on startup, if live weather bootstrap is unavailable, the app restores cached weather so page 0 is still populated.
+- Offline fallback timing: if startup has no WiFi and no valid cache, the app renders an explicit placeholder weather payload (`Offline`, `0.0C`) so page 0 is still populated.
+- Caveat: cached values can be stale and may not match current outside conditions until the next successful live fetch.
+
+### [OWM] Deploy + verify checklist (after weather-cache changes)
+
+1. Deploy firmware files from `src/weather_station_mpy`:
+
+```powershell
+.\deploy.ps1 -Port COM13
+```
+
+1. Reboot to force a fresh startup weather path (either method is fine):
+
+```powershell
+mpremote connect COM13 soft-reset
+```
+
+1. Confirm one startup success marker in UART:
+
+- `[OWM] startup fetch OK`
+- `[OWM] startup weather restored from cache`
+- `[OWM] startup weather fallback: offline placeholder`
+
+> **Do not use `--reset` or `ctrl+D` unless necessary** — rapid resets cause AP rate-limiting (status=15 ASSOC_FAIL). Use `capture_uart.py --duration 180` (no `--reset` flag) to observe an already-running device.
+
+### [HIL] Weather-visible smoke test
+
+Run from `src/weather_station_mpy`.
+
+Standalone test:
+
+```powershell
+python tests/hil/test_weather_visible.py --port COM13
+```
+
+Runner suite:
+
+```powershell
+python tests/hil/hil_runner.py --port COM13 --suite weather_visible
+```
+
+Pass/fail semantics (brief): PASS when weather becomes visible in UART (startup fetch OK, startup cache restore, startup offline placeholder fallback, or a live `[OWM] <temp>C` line). FAIL on crash markers or if no weather marker appears before timeout.
+
+### [HIL] Menu-visible sweep test
+
+Run from `src/weather_station_mpy`.
+
+Standalone test:
+
+```powershell
+python tests/hil/test_menu_visible.py --port COM13
+```
+
+Runner suite:
+
+```powershell
+python tests/hil/hil_runner.py --port COM13 --suite menu_visible
+```
+
+Pass/fail semantics (brief): PASS when every enabled page can be selected with UART `!PAGE <n>` and each follow-up `!SNAP` reports the requested active page. FAIL on command errors, page mismatch, snapshot timeout, or crash markers.
 
 ## PC metrics endpoint (Page 5)
 
@@ -284,6 +378,8 @@ Device tests in `tests/device/test_app.py` include:
 
 **Weather page stuck on `Fetching wx...` / `OWM err -202`**: This indicates the ESP is associated to WiFi, but cannot reach the OpenWeatherMap endpoint from that SSID (DNS, route, or internet upstream issue). Verify that SSID has internet access, router DNS resolution is working, and the configured OWM URL is reachable from another client on the same SSID.
 
+**Repeated `[OWM]` `-202`/`-203` in UART**: With weather cache fallback enabled, repeated transport errors are expected to keep showing cached weather instead of blank weather fields after startup. Confirm `weather_cache.json` exists on-device, then verify internet/DNS reachability from the ESP SSID, check OpenWeatherMap host/port access from another client on the same network, and validate your OWM key and endpoint configuration.
+
 **Web UI unreachable from PC**: If the ESP shows a WiFi IP and `[WEB] Config UI: http://<ip>:<port>/` in UART, but your PC cannot ARP/ping/reach that IP, this is typically AP/client isolation (or VLAN separation). Connect the PC to the same SSID/VLAN as the ESP, or disable client isolation on that SSID.
 
 **PC metrics diagnostics (`[PCDBG]`)**: When `[PC] fetch error: ...` appears, the firmware may emit a short connectivity snapshot. `endpoint host:port` shows the parsed target from `metrics.pc_url`. `ifconfig (...)` is the ESP STA tuple `(ip, netmask, gateway, dns)`. `resolve ok (...)` / `resolve err ...` shows whether DNS or host parsing succeeded. `connect err ...` is the TCP connect result after resolution.
@@ -300,6 +396,24 @@ Device tests in `tests/device/test_app.py` include:
 
 **Solar page shows no data**: `solar.enabled` is `false` by default. Set it to `true` in `config.json` and supply valid SolarMan credentials.
 
+### OWM always fails with -202 or -203 (EAI_FAIL / EAI_MEMORY)
+
+This is caused by lwIP PCB/DNS memory exhaustion. Known root causes and fixes applied in the current codebase:
+
+- **Web server consuming TCP PCBs**: The web config server repeatedly failing with ENOBUFS exhausts the lwIP PCB pool. Fix: `web.enabled` defaults to `false` in config. Do **not** enable the web server unless needed.
+- **DNS server blocking external resolvers**: Setting `wifi.dns` to `8.8.8.8` on restricted LANs causes DNS timeouts that exhaust the lwIP `MEMP_NETDB` slot. Leave `wifi.dns` empty to use DHCP-assigned router DNS.
+- **Display init before OWM bootstrap**: `DisplayManager.init()` allocates DMA-capable RAM. If called before OWM's DNS lookup, the lwIP DNS allocator gets `EAI_MEMORY`. The boot sequence does OWM bootstrap first, then display init (see Boot Sequence above).
+- **AP rate-limiting after rapid resets**: Repeated soft-resets during development cause the AP to reject re-association (status=15 `ASSOC_FAIL`). Leave the device powered for 5–10 minutes without resetting to allow AP rate-limit to clear.
+
+### ASSOC_FAIL (status=15) operator checklist
+
+- Check UART for this sequence: `[WiFi] status=15 ASSOC_FAIL`, then `[WiFi] ASSOC_FAIL #n - radio off, backoff ...` (or `quiet window ...`), then `[WiFi] radio OFF during backoff`.
+- Wait when backoff/quiet window logs are active. Repeated resets during this period usually make AP lockout behavior worse.
+- Reboot the AP only after at least one full long quiet window has elapsed (`720s` default) and status 15 still repeats immediately.
+- Run an A/B test with a phone hotspot to isolate AP policy issues:
+  - Hotspot works but home AP fails: likely AP rate-limit/association policy on the router.
+  - Both fail with status 15: re-check WiFi credentials, security mode compatibility, and RF signal quality.
+
 **PC metrics page shows stale/no data**: Verify the PC metrics API is running and reachable at the configured `metrics.pc_url`. Use the `[PCDBG]` lines above to separate name resolution failures from TCP path failures.
 
 ## Next implementation targets
@@ -311,9 +425,16 @@ Device tests in `tests/device/test_app.py` include:
 
 ## UART Display Snapshot
 
-The firmware includes a `uart_capture_task` that listens on the serial port for the command `!SNAP` and responds with a JSON dump of the current display state.
+The firmware includes a `uart_capture_task` that listens on the serial port and supports these commands:
+
+- `!SNAP` -> emit snapshot JSON between `>>SNAP_START` and `>>SNAP_END`
+- `!PAGE <n>` -> switch to enabled page `n` and reply `>>CMD_OK PAGE <n>`
+- `!NEXT` -> switch to next enabled page and reply `>>CMD_OK NEXT <n>`
+- `!SUBPAGE <0|1>` -> select metrics subpage and reply `>>CMD_OK SUBPAGE <n>`
 
 **Purpose**: diagnose what is shown on the physical display without looking at the device. Works while the main app is running.
+
+`!SNAP` includes runtime fields used to derive display-visible data on the host side (`page`, weather/forecast/solar/metrics state, `local_time`, `snapshot_ms`), so reports are based on page render rules rather than parsing UART log lines.
 
 **Requirements on PC**: `pyserial>=3.5` — install via `pip install -r requirements.txt`
 
@@ -323,25 +444,44 @@ The firmware includes a `uart_capture_task` that listens on the serial port for 
 # Capture snapshot and render as HTML
 python tools/capture_display.py --port COM13
 
+# Capture all enabled pages and validate page switching
+python tools/capture_display.py --port COM13 --all-pages
+
 # Custom output file
 python tools/capture_display.py --port COM13 --output my_snapshot.html
 ```
 
-The script sends `!SNAP\r\n` to COM13, waits up to 15 seconds for a `>>SNAP_START … >>SNAP_END` block from the device, parses the JSON, and writes an HTML mockup of all display pages to `snapshot.html`.
+By default, the script sends `!SNAP\r\n` to COM13, waits up to 15 seconds for a `>>SNAP_START ... >>SNAP_END` block, parses the JSON, derives visible on-screen fields using page render rules, and writes a single-page HTML report.
+
+With `--all-pages`, the script:
+
+1. Captures an initial snapshot to read `enabled_pages`.
+1. Sends `!PAGE <n>` for each target page.
+1. Captures a new `!SNAP` after each page switch.
+1. Writes a multi-page sweep report and exits non-zero if any page fails validation.
+
+CI-friendly host check (no device required, mocked serial path):
+
+```powershell
+python -m pytest src/weather_station_mpy/tests/test_capture_display_tool.py -v
+```
 
 **Device side**: `uart_capture_task` is added automatically to the async task list in `main.py` when `services/uart_capture_service.py` is deployed on the device (it is part of the standard deploy set via `deploy.ps1`).
 
 **UART snapshot output format**:
-```
+
+```text
 [SNAP] Snapshot triggered
 >>SNAP_START
 {"page":0,"wifi_online":true,"weather":{"valid":true,"temp_c":7.1,...},...}
 >>SNAP_END
+>>CMD_OK PAGE 2
 ```
 
 **Limitations**:
+
 - Not a pixel-level screenshot — the ST7789 SPI driver is write-only; reading back framebuffer pixels is not supported.
-- The snapshot reflects runtime state, not a pixel render. Visual layout differences between pages are reflected in the HTML via the `page` field.
+- The capture is host-derived structured data from runtime snapshot fields, not raw framebuffer pixels.
 - Memory overhead per snapshot: ~1–2 KB for JSON serialization. Safe with normal ≥60 KB free heap.
 
 ## OWM Error Reference
