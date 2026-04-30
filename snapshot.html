@@ -20,379 +20,132 @@
 </head>
 <body>
 <h1>ESP32 Menu Sweep Report</h1>
-<div class="meta">Generated: 2026-04-30 22:39:57 | Pass: 6/6 | Enabled pages: [0, 1, 2, 3, 4, 5]</div>
+<div class="meta">Generated: 2026-04-30 23:14:34 | Pass: 6/6 | Enabled pages: [0, 1, 2, 3, 4, 5]</div>
 
 <h2>Summary</h2>
 <table>
-  <tr><th>Requested</th><th>Observed</th><th>Status</th><th>Details</th></tr>
-  <tr><td>0</td><td>0</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>1</td><td>1</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>2</td><td>2</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>3</td><td>3</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>4</td><td>4</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>5</td><td>5</td><td style='color:#4f4'>PASS</td><td></td></tr>
+    <tr><th>Requested</th><th>Observed</th><th>Source</th><th>Status</th><th>Details</th></tr>
+  <tr><td>0</td><td>0</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>1</td><td>1</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>2</td><td>2</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>3</td><td>3</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>4</td><td>4</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr><tr><td>5</td><td>5</td><td>derived</td><td style='color:#4f4'>PASS</td><td></td></tr>
 </table>
 <h2>Snapshots</h2>
-<div class="grid"><div class='card'><h3>Page 0 (Weather) -> observed 0</h3><pre>{
-  &quot;enabled_pages&quot;: [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5
-  ],
-  &quot;esp_status&quot;: {
-    &quot;channel&quot;: 0,
-    &quot;cpu_mhz&quot;: 160,
-    &quot;flash_kb&quot;: 4096,
-    &quot;fs_free_kb&quot;: 1504,
-    &quot;fs_total_kb&quot;: 2048,
-    &quot;ip&quot;: &quot;offline&quot;,
-    &quot;ram_free_kb&quot;: 60,
-    &quot;ram_used_kb&quot;: 87,
-    &quot;rssi&quot;: 0,
-    &quot;uptime_s&quot;: 741
+<div class="grid"><div class='card'><h3>Page 0 (Weather) -> observed 0 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;clock&quot;: &quot;00:15:13&quot;,
+    &quot;condition_text&quot;: &quot;Offline&quot;,
+    &quot;date&quot;: &quot;Fri  01 Jan 2000&quot;,
+    &quot;feels_text&quot;: &quot;F:0.0 H:0%&quot;,
+    &quot;stale&quot;: false,
+    &quot;status_age_label&quot;: &quot;offline&quot;,
+    &quot;temp_text&quot;: &quot;+0.0C&quot;,
+    &quot;wind_text&quot;: &quot;Wind:0.0m/s&quot;
   },
-  &quot;forecast&quot;: [],
-  &quot;last_metrics_fetch_ms&quot;: 0,
-  &quot;last_solar_fetch_ms&quot;: 0,
-  &quot;last_weather_fetch_ms&quot;: 0,
-  &quot;metrics&quot;: {
-    &quot;cpu_pct&quot;: 0.0,
-    &quot;disk_pct&quot;: 0.0,
-    &quot;gpu_pct&quot;: null,
-    &quot;gpu_temp_c&quot;: null,
-    &quot;ram_pct&quot;: 0.0,
-    &quot;temp_c&quot;: null,
-    &quot;ts&quot;: 0,
-    &quot;uptime_s&quot;: 0,
-    &quot;valid&quot;: false
-  },
-  &quot;metrics_subpage&quot;: 0,
-  &quot;net_error_streak&quot;: 0,
   &quot;page&quot;: 0,
-  &quot;solar&quot;: {
-    &quot;battery_soc&quot;: 0.0,
-    &quot;generation_w&quot;: 0.0,
-    &quot;grid_w&quot;: 0.0,
-    &quot;last_update_ts&quot;: 0,
-    &quot;valid&quot;: false
-  },
+  &quot;page_label&quot;: &quot;[1/6]&quot;,
+  &quot;page_name&quot;: &quot;Weather&quot;,
+  &quot;render_ms&quot;: 913141,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
   &quot;time_synced&quot;: false,
-  &quot;weather&quot;: {
-    &quot;condition&quot;: &quot;Offline&quot;,
-    &quot;condition_id&quot;: 800,
-    &quot;feels_like_c&quot;: 0.0,
-    &quot;fetched_ms&quot;: 0,
-    &quot;humidity&quot;: 0,
-    &quot;temp_c&quot;: 0.0,
-    &quot;valid&quot;: true,
-    &quot;wind_ms&quot;: 0.0
-  },
-  &quot;weather_error&quot;: &quot;&quot;,
-  &quot;weather_trend&quot;: [],
-  &quot;web_ready&quot;: true,
-  &quot;wifi_online&quot;: false
-}</pre></div><div class='card'><h3>Page 1 (Tomorrow) -> observed 1</h3><pre>{
-  &quot;enabled_pages&quot;: [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5
+  &quot;visible_text&quot;: [
+    &quot;00:15:13&quot;,
+    &quot;Fri  01 Jan 2000&quot;,
+    &quot;+0.0C&quot;,
+    &quot;F:0.0 H:0%&quot;,
+    &quot;Offline&quot;,
+    &quot;Wind:0.0m/s&quot;,
+    &quot;offline&quot;,
+    &quot;[1/6]&quot;
   ],
-  &quot;esp_status&quot;: {
-    &quot;channel&quot;: 0,
-    &quot;cpu_mhz&quot;: 160,
-    &quot;flash_kb&quot;: 4096,
-    &quot;fs_free_kb&quot;: 1504,
-    &quot;fs_total_kb&quot;: 2048,
-    &quot;ip&quot;: &quot;offline&quot;,
-    &quot;ram_free_kb&quot;: 60,
-    &quot;ram_used_kb&quot;: 87,
-    &quot;rssi&quot;: 0,
-    &quot;uptime_s&quot;: 741
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 1 (Tomorrow) -> observed 1 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;Forecast pending&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;
   },
-  &quot;forecast&quot;: [],
-  &quot;last_metrics_fetch_ms&quot;: 0,
-  &quot;last_solar_fetch_ms&quot;: 0,
-  &quot;last_weather_fetch_ms&quot;: 0,
-  &quot;metrics&quot;: {
-    &quot;cpu_pct&quot;: 0.0,
-    &quot;disk_pct&quot;: 0.0,
-    &quot;gpu_pct&quot;: null,
-    &quot;gpu_temp_c&quot;: null,
-    &quot;ram_pct&quot;: 0.0,
-    &quot;temp_c&quot;: null,
-    &quot;ts&quot;: 0,
-    &quot;uptime_s&quot;: 0,
-    &quot;valid&quot;: false
-  },
-  &quot;metrics_subpage&quot;: 0,
-  &quot;net_error_streak&quot;: 0,
   &quot;page&quot;: 1,
-  &quot;solar&quot;: {
-    &quot;battery_soc&quot;: 0.0,
-    &quot;generation_w&quot;: 0.0,
-    &quot;grid_w&quot;: 0.0,
-    &quot;last_update_ts&quot;: 0,
-    &quot;valid&quot;: false
-  },
+  &quot;page_label&quot;: &quot;[2/6]&quot;,
+  &quot;page_name&quot;: &quot;Tomorrow&quot;,
+  &quot;render_ms&quot;: 913572,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
   &quot;time_synced&quot;: false,
-  &quot;weather&quot;: {
-    &quot;condition&quot;: &quot;Offline&quot;,
-    &quot;condition_id&quot;: 800,
-    &quot;feels_like_c&quot;: 0.0,
-    &quot;fetched_ms&quot;: 0,
-    &quot;humidity&quot;: 0,
-    &quot;temp_c&quot;: 0.0,
-    &quot;valid&quot;: true,
-    &quot;wind_ms&quot;: 0.0
-  },
-  &quot;weather_error&quot;: &quot;&quot;,
-  &quot;weather_trend&quot;: [],
-  &quot;web_ready&quot;: true,
-  &quot;wifi_online&quot;: false
-}</pre></div><div class='card'><h3>Page 2 (5-Day) -> observed 2</h3><pre>{
-  &quot;enabled_pages&quot;: [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5
+  &quot;visible_text&quot;: [
+    &quot;Forecast pending&quot;,
+    &quot;offline&quot;,
+    &quot;[2/6]&quot;
   ],
-  &quot;esp_status&quot;: {
-    &quot;channel&quot;: 0,
-    &quot;cpu_mhz&quot;: 160,
-    &quot;flash_kb&quot;: 4096,
-    &quot;fs_free_kb&quot;: 1504,
-    &quot;fs_total_kb&quot;: 2048,
-    &quot;ip&quot;: &quot;offline&quot;,
-    &quot;ram_free_kb&quot;: 60,
-    &quot;ram_used_kb&quot;: 87,
-    &quot;rssi&quot;: 0,
-    &quot;uptime_s&quot;: 741
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 2 (5-Day) -> observed 2 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;Forecast pending&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;
   },
-  &quot;forecast&quot;: [],
-  &quot;last_metrics_fetch_ms&quot;: 0,
-  &quot;last_solar_fetch_ms&quot;: 0,
-  &quot;last_weather_fetch_ms&quot;: 0,
-  &quot;metrics&quot;: {
-    &quot;cpu_pct&quot;: 0.0,
-    &quot;disk_pct&quot;: 0.0,
-    &quot;gpu_pct&quot;: null,
-    &quot;gpu_temp_c&quot;: null,
-    &quot;ram_pct&quot;: 0.0,
-    &quot;temp_c&quot;: null,
-    &quot;ts&quot;: 0,
-    &quot;uptime_s&quot;: 0,
-    &quot;valid&quot;: false
-  },
-  &quot;metrics_subpage&quot;: 0,
-  &quot;net_error_streak&quot;: 0,
   &quot;page&quot;: 2,
-  &quot;solar&quot;: {
-    &quot;battery_soc&quot;: 0.0,
-    &quot;generation_w&quot;: 0.0,
-    &quot;grid_w&quot;: 0.0,
-    &quot;last_update_ts&quot;: 0,
-    &quot;valid&quot;: false
-  },
+  &quot;page_label&quot;: &quot;[3/6]&quot;,
+  &quot;page_name&quot;: &quot;5-Day&quot;,
+  &quot;render_ms&quot;: 914035,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
   &quot;time_synced&quot;: false,
-  &quot;weather&quot;: {
-    &quot;condition&quot;: &quot;Offline&quot;,
-    &quot;condition_id&quot;: 800,
-    &quot;feels_like_c&quot;: 0.0,
-    &quot;fetched_ms&quot;: 0,
-    &quot;humidity&quot;: 0,
-    &quot;temp_c&quot;: 0.0,
-    &quot;valid&quot;: true,
-    &quot;wind_ms&quot;: 0.0
-  },
-  &quot;weather_error&quot;: &quot;&quot;,
-  &quot;weather_trend&quot;: [],
-  &quot;web_ready&quot;: true,
-  &quot;wifi_online&quot;: false
-}</pre></div><div class='card'><h3>Page 3 (Solar) -> observed 3</h3><pre>{
-  &quot;enabled_pages&quot;: [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5
+  &quot;visible_text&quot;: [
+    &quot;Forecast pending&quot;,
+    &quot;offline&quot;,
+    &quot;[3/6]&quot;
   ],
-  &quot;esp_status&quot;: {
-    &quot;channel&quot;: 0,
-    &quot;cpu_mhz&quot;: 160,
-    &quot;flash_kb&quot;: 4096,
-    &quot;fs_free_kb&quot;: 1504,
-    &quot;fs_total_kb&quot;: 2048,
-    &quot;ip&quot;: &quot;offline&quot;,
-    &quot;ram_free_kb&quot;: 60,
-    &quot;ram_used_kb&quot;: 87,
-    &quot;rssi&quot;: 0,
-    &quot;uptime_s&quot;: 741
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 3 (Solar) -> observed 3 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;Solar pending&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;
   },
-  &quot;forecast&quot;: [],
-  &quot;last_metrics_fetch_ms&quot;: 0,
-  &quot;last_solar_fetch_ms&quot;: 0,
-  &quot;last_weather_fetch_ms&quot;: 0,
-  &quot;metrics&quot;: {
-    &quot;cpu_pct&quot;: 0.0,
-    &quot;disk_pct&quot;: 0.0,
-    &quot;gpu_pct&quot;: null,
-    &quot;gpu_temp_c&quot;: null,
-    &quot;ram_pct&quot;: 0.0,
-    &quot;temp_c&quot;: null,
-    &quot;ts&quot;: 0,
-    &quot;uptime_s&quot;: 0,
-    &quot;valid&quot;: false
-  },
-  &quot;metrics_subpage&quot;: 0,
-  &quot;net_error_streak&quot;: 0,
   &quot;page&quot;: 3,
-  &quot;solar&quot;: {
-    &quot;battery_soc&quot;: 0.0,
-    &quot;generation_w&quot;: 0.0,
-    &quot;grid_w&quot;: 0.0,
-    &quot;last_update_ts&quot;: 0,
-    &quot;valid&quot;: false
-  },
+  &quot;page_label&quot;: &quot;[4/6]&quot;,
+  &quot;page_name&quot;: &quot;Solar&quot;,
+  &quot;render_ms&quot;: 914501,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
   &quot;time_synced&quot;: false,
-  &quot;weather&quot;: {
-    &quot;condition&quot;: &quot;Offline&quot;,
-    &quot;condition_id&quot;: 800,
-    &quot;feels_like_c&quot;: 0.0,
-    &quot;fetched_ms&quot;: 0,
-    &quot;humidity&quot;: 0,
-    &quot;temp_c&quot;: 0.0,
-    &quot;valid&quot;: true,
-    &quot;wind_ms&quot;: 0.0
-  },
-  &quot;weather_error&quot;: &quot;&quot;,
-  &quot;weather_trend&quot;: [],
-  &quot;web_ready&quot;: true,
-  &quot;wifi_online&quot;: false
-}</pre></div><div class='card'><h3>Page 4 (PC Metrics) -> observed 4</h3><pre>{
-  &quot;enabled_pages&quot;: [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5
+  &quot;visible_text&quot;: [
+    &quot;Solar pending&quot;,
+    &quot;offline&quot;,
+    &quot;[4/6]&quot;
   ],
-  &quot;esp_status&quot;: {
-    &quot;channel&quot;: 0,
-    &quot;cpu_mhz&quot;: 160,
-    &quot;flash_kb&quot;: 4096,
-    &quot;fs_free_kb&quot;: 1504,
-    &quot;fs_total_kb&quot;: 2048,
-    &quot;ip&quot;: &quot;offline&quot;,
-    &quot;ram_free_kb&quot;: 60,
-    &quot;ram_used_kb&quot;: 87,
-    &quot;rssi&quot;: 0,
-    &quot;uptime_s&quot;: 741
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 4 (PC Metrics) -> observed 4 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;message&quot;: &quot;No Network&quot;,
+    &quot;status_age_label&quot;: &quot;offline&quot;,
+    &quot;subpage&quot;: 0,
+    &quot;uptime&quot;: &quot;00h 00m&quot;
   },
-  &quot;forecast&quot;: [],
-  &quot;last_metrics_fetch_ms&quot;: 0,
-  &quot;last_solar_fetch_ms&quot;: 0,
-  &quot;last_weather_fetch_ms&quot;: 0,
-  &quot;metrics&quot;: {
-    &quot;cpu_pct&quot;: 0.0,
-    &quot;disk_pct&quot;: 0.0,
-    &quot;gpu_pct&quot;: null,
-    &quot;gpu_temp_c&quot;: null,
-    &quot;ram_pct&quot;: 0.0,
-    &quot;temp_c&quot;: null,
-    &quot;ts&quot;: 0,
-    &quot;uptime_s&quot;: 0,
-    &quot;valid&quot;: false
-  },
-  &quot;metrics_subpage&quot;: 0,
-  &quot;net_error_streak&quot;: 0,
   &quot;page&quot;: 4,
-  &quot;solar&quot;: {
-    &quot;battery_soc&quot;: 0.0,
-    &quot;generation_w&quot;: 0.0,
-    &quot;grid_w&quot;: 0.0,
-    &quot;last_update_ts&quot;: 0,
-    &quot;valid&quot;: false
-  },
+  &quot;page_label&quot;: &quot;[5/6]&quot;,
+  &quot;page_name&quot;: &quot;PC Metrics&quot;,
+  &quot;render_ms&quot;: 914962,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
   &quot;time_synced&quot;: false,
-  &quot;weather&quot;: {
-    &quot;condition&quot;: &quot;Offline&quot;,
-    &quot;condition_id&quot;: 800,
-    &quot;feels_like_c&quot;: 0.0,
-    &quot;fetched_ms&quot;: 0,
-    &quot;humidity&quot;: 0,
-    &quot;temp_c&quot;: 0.0,
-    &quot;valid&quot;: true,
-    &quot;wind_ms&quot;: 0.0
-  },
-  &quot;weather_error&quot;: &quot;&quot;,
-  &quot;weather_trend&quot;: [],
-  &quot;web_ready&quot;: true,
-  &quot;wifi_online&quot;: false
-}</pre></div><div class='card'><h3>Page 5 (ESP Status) -> observed 5</h3><pre>{
-  &quot;enabled_pages&quot;: [
-    0,
-    1,
-    2,
-    3,
-    4,
-    5
+  &quot;visible_text&quot;: [
+    &quot;No Network&quot;,
+    &quot;offline&quot;,
+    &quot;[5/6]&quot;
   ],
-  &quot;esp_status&quot;: {
-    &quot;channel&quot;: 0,
-    &quot;cpu_mhz&quot;: 160,
-    &quot;flash_kb&quot;: 4096,
-    &quot;fs_free_kb&quot;: 1504,
-    &quot;fs_total_kb&quot;: 2048,
-    &quot;ip&quot;: &quot;offline&quot;,
-    &quot;ram_free_kb&quot;: 60,
-    &quot;ram_used_kb&quot;: 87,
-    &quot;rssi&quot;: 0,
-    &quot;uptime_s&quot;: 741
+  &quot;wifi_online&quot;: false
+}</pre></div><div class='card'><h3>Page 5 (ESP Status) -> observed 5 (source: derived_from_app_state)</h3><pre>{
+  &quot;details&quot;: {
+    &quot;status_age_label&quot;: &quot;offline&quot;
   },
-  &quot;forecast&quot;: [],
-  &quot;last_metrics_fetch_ms&quot;: 0,
-  &quot;last_solar_fetch_ms&quot;: 0,
-  &quot;last_weather_fetch_ms&quot;: 0,
-  &quot;metrics&quot;: {
-    &quot;cpu_pct&quot;: 0.0,
-    &quot;disk_pct&quot;: 0.0,
-    &quot;gpu_pct&quot;: null,
-    &quot;gpu_temp_c&quot;: null,
-    &quot;ram_pct&quot;: 0.0,
-    &quot;temp_c&quot;: null,
-    &quot;ts&quot;: 0,
-    &quot;uptime_s&quot;: 0,
-    &quot;valid&quot;: false
-  },
-  &quot;metrics_subpage&quot;: 0,
-  &quot;net_error_streak&quot;: 0,
   &quot;page&quot;: 5,
-  &quot;solar&quot;: {
-    &quot;battery_soc&quot;: 0.0,
-    &quot;generation_w&quot;: 0.0,
-    &quot;grid_w&quot;: 0.0,
-    &quot;last_update_ts&quot;: 0,
-    &quot;valid&quot;: false
-  },
+  &quot;page_label&quot;: &quot;[6/6]&quot;,
+  &quot;page_name&quot;: &quot;ESP Status&quot;,
+  &quot;render_ms&quot;: 915429,
+  &quot;source&quot;: &quot;derived_from_app_state&quot;,
   &quot;time_synced&quot;: false,
-  &quot;weather&quot;: {
-    &quot;condition&quot;: &quot;Offline&quot;,
-    &quot;condition_id&quot;: 800,
-    &quot;feels_like_c&quot;: 0.0,
-    &quot;fetched_ms&quot;: 0,
-    &quot;humidity&quot;: 0,
-    &quot;temp_c&quot;: 0.0,
-    &quot;valid&quot;: true,
-    &quot;wind_ms&quot;: 0.0
-  },
-  &quot;weather_error&quot;: &quot;&quot;,
-  &quot;weather_trend&quot;: [],
-  &quot;web_ready&quot;: true,
+  &quot;visible_text&quot;: [
+    &quot;RAM: 60kB free 87kB used&quot;,
+    &quot;CPU: 160MHz Flash:4MB&quot;,
+    &quot;FS: 1504kB/2048kB free&quot;,
+    &quot;IP: offline&quot;,
+    &quot;WiFi: offline&quot;,
+    &quot;Up: 00h 15m&quot;,
+    &quot;offline&quot;,
+    &quot;[6/6]&quot;
+  ],
   &quot;wifi_online&quot;: false
 }</pre></div></div>
 </body>
