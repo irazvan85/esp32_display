@@ -107,6 +107,7 @@ def _run_suite(port, suite_name, suite_path, timeout_s, verbose):
     crashed  = False
     summary_found = False
     raw_lines = []
+    proc = None
 
     cmd = ["mpremote", "connect", port, "run", tmp_path]
 
@@ -177,6 +178,15 @@ def _run_suite(port, suite_name, suite_path, timeout_s, verbose):
 
         proc.wait(timeout=5)
 
+    except KeyboardInterrupt:
+        if proc is not None and proc.poll() is None:
+            try:
+                proc.kill()
+            except OSError:
+                pass
+        print("  %s[INTERRUPTED] suite %s interrupted by user%s"
+              % (_YELLOW, suite_name, _RESET))
+        raise
     except FileNotFoundError:
         print("%s[ERROR] mpremote not found — install it: pip install mpremote%s"
               % (_RED, _RESET))
@@ -274,43 +284,48 @@ def main():
     total_fail = 0
     total_crash = 0
 
-    for suite_name, suite_path in suites:
-        if suite_path is None:
-            # host-side tests — use pyserial directly
-            sys.path.insert(0, _HERE)
-            if suite_name == "boot_clean":
-                from test_boot_clean import run_boot_clean
-                boot_timeout = max(args.timeout, 30)  # always give at least 30 s
-                results, crashed = run_boot_clean(
-                    args.port, timeout_s=boot_timeout, verbose=args.verbose
-                )
-            elif suite_name == "weather_visible":
-                from test_weather_visible import run_weather_visible
-                weather_timeout = max(args.timeout, 60)  # allow network/cache path
-                results, crashed = run_weather_visible(
-                    args.port, timeout_s=weather_timeout, verbose=args.verbose
-                )
-            elif suite_name == "menu_visible":
-                from test_menu_visible import run_menu_visible
+    try:
+        for suite_name, suite_path in suites:
+            if suite_path is None:
+                # host-side tests — use pyserial directly
+                sys.path.insert(0, _HERE)
+                if suite_name == "boot_clean":
+                    from test_boot_clean import run_boot_clean
+                    boot_timeout = max(args.timeout, 30)  # always give at least 30 s
+                    results, crashed = run_boot_clean(
+                        args.port, timeout_s=boot_timeout, verbose=args.verbose
+                    )
+                elif suite_name == "weather_visible":
+                    from test_weather_visible import run_weather_visible
+                    weather_timeout = max(args.timeout, 60)  # allow network/cache path
+                    results, crashed = run_weather_visible(
+                        args.port, timeout_s=weather_timeout, verbose=args.verbose
+                    )
+                elif suite_name == "menu_visible":
+                    from test_menu_visible import run_menu_visible
 
-                menu_timeout = max(args.timeout, 90)
-                results, crashed = run_menu_visible(
-                    args.port, timeout_s=menu_timeout, verbose=args.verbose
-                )
+                    menu_timeout = max(args.timeout, 90)
+                    results, crashed = run_menu_visible(
+                        args.port, timeout_s=menu_timeout, verbose=args.verbose
+                    )
+                else:
+                    print("%s[ERROR] Unknown host-side suite: %s%s"
+                          % (_RED, suite_name, _RESET))
+                    results, crashed = [], True
             else:
-                print("%s[ERROR] Unknown host-side suite: %s%s"
-                      % (_RED, suite_name, _RESET))
-                results, crashed = [], True
-        else:
-            results, crashed = _run_suite(
-                args.port, suite_name, suite_path, args.timeout, args.verbose
-            )
-        _print_table(suite_name, results, crashed)
+                results, crashed = _run_suite(
+                    args.port, suite_name, suite_path, args.timeout, args.verbose
+                )
+            _print_table(suite_name, results, crashed)
 
-        total_pass  += sum(1 for r in results if r["status"] == "PASS")
-        total_fail  += sum(1 for r in results if r["status"] == "FAIL")
-        if crashed:
-            total_crash += 1
+            total_pass  += sum(1 for r in results if r["status"] == "PASS")
+            total_fail  += sum(1 for r in results if r["status"] == "FAIL")
+            if crashed:
+                total_crash += 1
+    except KeyboardInterrupt:
+        print()
+        print("%s[ABORTED] Test run interrupted by user%s" % (_YELLOW, _RESET))
+        sys.exit(130)
 
     # ── overall summary ────────────────────────────────────────────────────────
     print()

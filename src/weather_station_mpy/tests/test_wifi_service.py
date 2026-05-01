@@ -29,7 +29,7 @@ class TestWifiServiceNoNetwork(unittest.TestCase):
 
 
 class TestWifiServiceInit(unittest.TestCase):
-    def _make_svc_with_mock_network(self, wlan_active=True):
+    def _make_svc_with_mock_network(self, wlan_active=True, cfg=None, network_constants=None):
         from services.wifi_service import WifiService
         import services.wifi_service as wf_module
 
@@ -40,10 +40,16 @@ class TestWifiServiceInit(unittest.TestCase):
         mock_network.WLAN.return_value = mock_wlan
         mock_network.STA_IF = 0
 
+        if isinstance(network_constants, dict):
+            for key, value in network_constants.items():
+                setattr(mock_network, key, value)
+
         original_network = wf_module.network
         wf_module.network = mock_network
         try:
-            svc = WifiService({"wifi": {"ssid": "x", "password": "y"}})
+            if cfg is None:
+                cfg = {"wifi": {"ssid": "x", "password": "y"}}
+            svc = WifiService(cfg)
         finally:
             wf_module.network = original_network
 
@@ -62,6 +68,21 @@ class TestWifiServiceInit(unittest.TestCase):
         _, mock_wlan, _ = self._make_svc_with_mock_network(wlan_active=False)
         active_true_calls = [c for c in mock_wlan.active.call_args_list if c.args == (True,)]
         self.assertEqual(len(active_true_calls), 1)
+
+    def test_reconnects_config_applied_from_cfg(self):
+        cfg = {"wifi": {"ssid": "x", "password": "y", "reconnects": 3}}
+        _, mock_wlan, _ = self._make_svc_with_mock_network(wlan_active=True, cfg=cfg)
+        self.assertIn(call.config(reconnects=3), mock_wlan.method_calls)
+
+    def test_pm_config_applied_when_supported(self):
+        cfg = {"wifi": {"ssid": "x", "password": "y", "pm": "performance"}}
+        constants = {"PM_PERFORMANCE": 7}
+        _, mock_wlan, _ = self._make_svc_with_mock_network(
+            wlan_active=True,
+            cfg=cfg,
+            network_constants=constants,
+        )
+        self.assertIn(call.config(pm=7), mock_wlan.method_calls)
 
 
 class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
@@ -544,6 +565,96 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
         mock_wlan.scan.return_value = [
             (b"home", bytes([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]), 6, -52, 4, 0),
             (b"home", bytes([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]), 1, -80, 4, 0),
+        ]
+        svc._wlan = mock_wlan
+
+        original_asyncio = wf_module.asyncio
+        try:
+            async def _sleep_ms(_ms):
+                await std_asyncio.sleep(0)
+
+            mock_aio = MagicMock()
+            mock_aio.sleep_ms = _sleep_ms
+            wf_module.asyncio = mock_aio
+
+            result = await svc.ensure_connected()
+            self.assertTrue(result)
+            self.assertEqual(mock_wlan.connect.call_count, 2)
+            self.assertEqual(
+                mock_wlan.connect.call_args_list[1],
+                call("home", "secret", bssid=bytes([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF])),
+            )
+        finally:
+            wf_module.asyncio = original_asyncio
+
+    async def test_connect_fail_status_sets_assoc_fail(self):
+        from services.wifi_service import WifiService
+        import services.wifi_service as wf_module
+
+        svc = WifiService.__new__(WifiService)
+        svc._cfg = {
+            "wifi": {
+                "ssid": "home",
+                "password": "secret",
+                "bssid": "",
+                "connect_timeout_ms": 50,
+            }
+        }
+
+        mock_wlan = MagicMock()
+        mock_wlan.status.return_value = 203
+        mock_wlan.isconnected.return_value = False
+        svc._wlan = mock_wlan
+
+        original_asyncio = wf_module.asyncio
+        try:
+            async def _sleep_ms(_ms):
+                await std_asyncio.sleep(0)
+
+            mock_aio = MagicMock()
+            mock_aio.sleep_ms = _sleep_ms
+            wf_module.asyncio = mock_aio
+
+            result = await svc.ensure_connected(allow_scan_retry=False)
+            self.assertFalse(result)
+            self.assertTrue(svc.assoc_fail)
+        finally:
+            wf_module.asyncio = original_asyncio
+
+    async def test_timeout_retries_with_scanned_bssid_when_prefer_enabled(self):
+        from services.wifi_service import WifiService
+        import services.wifi_service as wf_module
+
+        svc = WifiService.__new__(WifiService)
+        svc._cfg = {
+            "wifi": {
+                "ssid": "home",
+                "password": "secret",
+                "prefer_bssid_scan": True,
+                "bssid": "",
+                "connect_timeout_ms": 30,
+            }
+        }
+
+        mock_wlan = MagicMock()
+        second_attempt_conn_checks = {"n": 0}
+
+        def _status():
+            if mock_wlan.connect.call_count < 2:
+                return 1001
+            return 1010
+
+        def _isconnected():
+            if mock_wlan.connect.call_count < 2:
+                return False
+            second_attempt_conn_checks["n"] += 1
+            return second_attempt_conn_checks["n"] >= 2
+
+        mock_wlan.status.side_effect = _status
+        mock_wlan.isconnected.side_effect = _isconnected
+        mock_wlan.ifconfig.return_value = ("192.168.1.50", "", "", "")
+        mock_wlan.scan.return_value = [
+            (b"home", bytes([0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF]), 6, -52, 4, 0),
         ]
         svc._wlan = mock_wlan
 

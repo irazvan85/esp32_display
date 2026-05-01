@@ -4,6 +4,7 @@ Requirements covered:
   REQ-WIFI-02  WiFi must connect using credentials from config.json
   REQ-WIFI-03  Connected IP must be a valid non-loopback address
   REQ-WIFI-04  WiFi signal strength (RSSI) must be present (< 0 dBm)
+    REQ-WIFI-06  Forced reconnect must recover and return a valid IP
   REQ-TIME-01  NTP time sync must succeed when WiFi is connected
   REQ-OWM-01   Weather service must return HTTP 200 and valid JSON
   REQ-OWM-02   Current weather must contain temp_c, condition, humidity
@@ -153,6 +154,47 @@ def test_wifi_reconnect_safe():
     print("[TEST:info] WiFi status after reconnect test: %d (first=%s)" % (stat, result1))
 
 
+def test_wifi_connect_time_budget():
+    """REQ-NET-01: ensure_connected(force=True) should finish within budget."""
+    import time
+    import uasyncio as asyncio
+    from services.wifi_service import WifiService
+
+    cfg = _load_cfg()
+    wifi_svc = WifiService(cfg)
+
+    timeout_ms = int(cfg.get("wifi", {}).get("connect_timeout_ms", 10_000))
+    budget_ms = timeout_ms + 20_000
+
+    started = time.ticks_ms()
+    connected = asyncio.run(wifi_svc.ensure_connected(force=True))
+    elapsed = time.ticks_diff(time.ticks_ms(), started)
+
+    assert_true(connected, "WiFi did not connect in forced connect budget")
+    assert_lt(elapsed, budget_ms, "forced connect too slow: %d ms" % elapsed)
+    print("[TEST:info] forced connect elapsed: %d ms" % elapsed)
+
+
+def test_wifi_force_reconnect_recovers_ip():
+    """REQ-WIFI-06: force reconnect must recover and keep a valid IP."""
+    import uasyncio as asyncio
+    from services.wifi_service import WifiService
+
+    cfg = _load_cfg()
+    wifi_svc = WifiService(cfg)
+
+    initial = asyncio.run(wifi_svc.ensure_connected())
+    assert_true(initial, "initial WiFi connect failed")
+
+    recovered = asyncio.run(wifi_svc.ensure_connected(force=True))
+    assert_true(recovered, "force reconnect failed")
+
+    ip = wifi_svc.ip()
+    assert_not_equal(ip, "0.0.0.0", "force reconnect ended without valid IP")
+    assert_false(ip.startswith("127."), "force reconnect returned loopback IP")
+    print("[TEST:info] force reconnect IP: %s" % ip)
+
+
 # ── register and run ──────────────────────────────────────────────────────────
 
 print("[TEST] === Network Tests ===")
@@ -164,4 +206,6 @@ run("weather_fetch_ok",      test_weather_fetch_ok)
 run("weather_data_valid",    test_weather_data_valid)
 run("forecast_fetch_ok",     test_forecast_fetch_ok)
 run("wifi_reconnect_safe",   test_wifi_reconnect_safe)
+run("wifi_connect_time_budget", test_wifi_connect_time_budget)
+run("wifi_force_reconnect_recovers_ip", test_wifi_force_reconnect_recovers_ip)
 summary()

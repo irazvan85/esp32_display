@@ -15,6 +15,18 @@ except ImportError:
 from compat import ticks_diff, ticks_ms
 
 _STAT_IDLE = getattr(network, "STAT_IDLE", 1000) if network else 1000
+_STAT_CONNECTING = getattr(network, "STAT_CONNECTING", 1001) if network else 1001
+_STAT_GOT_IP = getattr(network, "STAT_GOT_IP", 1010) if network else 1010
+
+# Common ESP32 reason/status fallbacks used by MicroPython ports.
+_STAT_NO_AP_FOUND = getattr(network, "STAT_NO_AP_FOUND", 201) if network else 201
+_STAT_WRONG_PASSWORD = getattr(network, "STAT_WRONG_PASSWORD", 202) if network else 202
+_STAT_CONNECT_FAIL = getattr(network, "STAT_CONNECT_FAIL", 203) if network else 203
+_STAT_ASSOC_FAIL = getattr(network, "STAT_ASSOC_FAIL", _STAT_CONNECT_FAIL) if network else _STAT_CONNECT_FAIL
+_STAT_HANDSHAKE_TIMEOUT = getattr(network, "STAT_HANDSHAKE_TIMEOUT", 204) if network else 204
+
+_DEFAULT_RECONNECTS = 0
+_MAX_RECONNECTS = 20
 
 
 class WifiService:
@@ -23,6 +35,9 @@ class WifiService:
         self._preallocated = bool(preallocated)
         self.assoc_fail = False
         self.last_status = _STAT_IDLE
+        self._wlan_reconnects = _DEFAULT_RECONNECTS
+        self._wlan_pm = None
+        self._load_wlan_tuning()
         if network is None:
             self._wlan = None
             return
@@ -32,10 +47,115 @@ class WifiService:
         self._wlan = network.WLAN(network.STA_IF)
         if not self._wlan.active():
             self._wlan.active(True)
+        self._apply_wlan_tuning()
+
+    def _load_wlan_tuning(self):
+        wifi_cfg = self._cfg.get("wifi", {}) if isinstance(self._cfg, dict) else {}
+
         try:
-            self._wlan.config(reconnects=0)
+            reconnects = int(wifi_cfg.get("reconnects", _DEFAULT_RECONNECTS))
+        except Exception:
+            reconnects = _DEFAULT_RECONNECTS
+
+        if reconnects < -1:
+            reconnects = -1
+        if reconnects > _MAX_RECONNECTS:
+            reconnects = _MAX_RECONNECTS
+        self._wlan_reconnects = reconnects
+
+        self._wlan_pm = self._resolve_pm_value(wifi_cfg.get("pm", "performance"))
+
+    def _resolve_pm_value(self, pm_value):
+        if network is None:
+            return None
+
+        if isinstance(pm_value, int):
+            return pm_value
+
+        if pm_value is None:
+            return None
+
+        text = str(pm_value).strip().lower()
+        if not text:
+            return None
+
+        if text in ("none", "off", "disabled"):
+            resolved = getattr(network, "PM_NONE", None)
+        elif text in ("powersave", "power_save", "save"):
+            resolved = getattr(network, "PM_POWERSAVE", None)
+        elif text in ("performance", "perf", "on"):
+            resolved = getattr(network, "PM_PERFORMANCE", None)
+        else:
+            try:
+                return int(text)
+            except Exception:
+                return None
+
+        if isinstance(resolved, int):
+            return resolved
+        return None
+
+    def _apply_wlan_tuning(self):
+        if self._wlan is None:
+            return
+
+        try:
+            self._wlan.config(reconnects=self._wlan_reconnects)
         except Exception:
             pass
+
+        if self._wlan_pm is not None:
+            try:
+                self._wlan.config(pm=self._wlan_pm)
+            except Exception:
+                pass
+
+    def _is_assoc_fail_status(self, status):
+        if status is None:
+            return False
+
+        return status in (
+            _STAT_ASSOC_FAIL,
+            _STAT_CONNECT_FAIL,
+            _STAT_HANDSHAKE_TIMEOUT,
+            15,
+            203,
+            204,
+        )
+
+    def _is_terminal_connect_status(self, status):
+        if status is None:
+            return False
+
+        if status in (_STAT_IDLE, _STAT_CONNECTING, _STAT_GOT_IP):
+            return False
+
+        if self._is_assoc_fail_status(status):
+            return True
+
+        if status in (_STAT_NO_AP_FOUND, _STAT_WRONG_PASSWORD):
+            return True
+
+        if isinstance(status, int) and status >= 200:
+            return True
+
+        return False
+
+    def _should_scan_retry(self, last_status, timed_out):
+        # Keep ASSOC_FAIL-specific retry always enabled, and allow broader
+        # timeout/terminal retries when prefer_bssid_scan is enabled.
+        if self._is_assoc_fail_status(last_status):
+            return True
+
+        wifi_cfg = self._cfg.get("wifi", {}) if isinstance(self._cfg, dict) else {}
+        prefer_scan = bool(wifi_cfg.get("prefer_bssid_scan", False))
+        if not prefer_scan:
+            return False
+
+        if timed_out:
+            return True
+
+        return self._is_terminal_connect_status(last_status)
 
     def is_connected(self):
         if self._wlan is None:
@@ -159,10 +279,7 @@ class WifiService:
         except Exception:
             pass
 
-        try:
-            self._wlan.config(reconnects=0)
-        except Exception:
-            pass
+        self._apply_wlan_tuning()
 
         try:
             self._wlan.disconnect()
@@ -236,15 +353,18 @@ class WifiService:
                     self.last_status = status
 
                 await asyncio.sleep_ms(250)
-            return last_status
+            timed_out = (not self._wlan.isconnected()) and (
+                ticks_diff(ticks_ms(), started) >= timeout_ms
+            )
+            return last_status, timed_out
 
-        last_status = await _wait_for_connect()
+        last_status, timed_out = await _wait_for_connect()
 
         if (
             allow_scan_retry
             and (not self._wlan.isconnected())
-            and last_status == 15
             and cfg_bssid is None
+            and self._should_scan_retry(last_status, timed_out)
         ):
             scanned_bssid = self._scan_best_bssid(ssid, allow_low_heap=True)
             if scanned_bssid is not None:
@@ -258,11 +378,14 @@ class WifiService:
                 except OSError as exc:
                     print("[WiFi] bssid retry connect() error: %s" % exc)
                 else:
-                    last_status = await _wait_for_connect()
+                    last_status, timed_out = await _wait_for_connect()
 
-        if last_status == 15:
+        if self._is_assoc_fail_status(last_status):
             self.assoc_fail = True
-            print("[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed")
+            print(
+                "[WiFi] status=%s ASSOC_FAIL — AP rejected association, longer backoff needed"
+                % (str(last_status),)
+            )
         else:
             self.assoc_fail = False
 

@@ -18,6 +18,11 @@ except ImportError:
     import asyncio
 
 try:
+    urandom = __import__("urandom")
+except ImportError:
+    urandom = None
+
+try:
     _machine = __import__("machine")
     Pin = _machine.Pin
 except ImportError:
@@ -83,7 +88,7 @@ def _is_transport_error(exc):
     code = None
     if len(exc.args) > 0:
         code = exc.args[0]
-    if code in (-202, 118, 113):
+    if code in (-203, -202, 118, 113):
         return True
 
     text = str(exc).lower()
@@ -190,8 +195,42 @@ def _assoc_fail_state_clear(cfg):
     _assoc_fail_state_save_count(cfg, 0)
 
 
+def _rand_bounded(max_value):
+    if max_value <= 0:
+        return 0
+
+    if urandom is not None:
+        try:
+            return int(urandom.getrandbits(30) % (max_value + 1))
+        except Exception:
+            pass
+
+    return ticks_ms() % (max_value + 1)
+
+
+def _with_backoff_jitter(base_ms, jitter_pct):
+    if jitter_pct <= 0:
+        return base_ms
+
+    span_ms = (base_ms * jitter_pct) // 100
+    if span_ms <= 0:
+        return base_ms
+
+    delta_ms = _rand_bounded(span_ms * 2) - span_ms
+    jittered_ms = base_ms + delta_ms
+    if jittered_ms < 5_000:
+        return 5_000
+    return jittered_ms
+
+
 def _assoc_fail_backoff_ms(assoc_fail_count, cfg):
     wifi_cfg = cfg.get("wifi", {})
+
+    jitter_pct = int(wifi_cfg.get("assoc_fail_backoff_jitter_pct", 10))
+    if jitter_pct < 0:
+        jitter_pct = 0
+    if jitter_pct > 30:
+        jitter_pct = 30
 
     backoff_cap_s = int(wifi_cfg.get("assoc_fail_backoff_max_s", 360))
     if backoff_cap_s < 120:
@@ -207,9 +246,11 @@ def _assoc_fail_backoff_ms(assoc_fail_count, cfg):
 
     stepped_s = min(120 * assoc_fail_count, backoff_cap_s)
     if assoc_fail_count >= long_after_n:
-        return long_cooldown_s * 1000, True
+        base_ms = long_cooldown_s * 1000
+        return _with_backoff_jitter(base_ms, jitter_pct), True
 
-    return stepped_s * 1000, False
+    base_ms = stepped_s * 1000
+    return _with_backoff_jitter(base_ms, jitter_pct), False
 
 
 async def _handle_assoc_fail_backoff(state, wifi_svc, cfg, assoc_fail_count):
@@ -276,9 +317,14 @@ async def wifi_task(
 ):
     wifi_check_ms = int(cfg["wifi"].get("check_interval_ms", 30_000))
     wifi_offline_retry_ms = int(cfg["wifi"].get("offline_retry_ms", 5_000))
+    ntp_retry_ms = int(cfg.get("time", {}).get("ntp_retry_ms", 60_000))
+    if ntp_retry_ms < 5_000:
+        ntp_retry_ms = 5_000
+
     _reconnect_backoff_ms = wifi_offline_retry_ms
     _assoc_fail_count = initial_assoc_fail_count if initial_assoc_fail_count > 0 else 0
     _assoc_fail_pending = bool(initial_assoc_fail_pending)
+    _ntp_retry_wait_ms = 0
 
     while True:
         if _assoc_fail_pending and not state.wifi_online:
@@ -302,6 +348,7 @@ async def wifi_task(
                 _assoc_fail_state_clear(cfg)
                 print("[WiFi] reconnect healed transport path")
             else:
+                _ntp_retry_wait_ms = 0
                 if wifi_svc.assoc_fail:
                     _assoc_fail_count += 1
                     _assoc_fail_state_save_count(cfg, _assoc_fail_count)
@@ -321,14 +368,39 @@ async def wifi_task(
                 _assoc_fail_count = 0
                 _assoc_fail_state_clear(cfg)
                 state.time_synced = await time_svc.sync_ntp()
+                if state.time_synced:
+                    _ntp_retry_wait_ms = 0
+                else:
+                    _ntp_retry_wait_ms = ntp_retry_ms
+            else:
+                _ntp_retry_wait_ms = 0
+
+        if online and (not state.time_synced) and _ntp_retry_wait_ms <= 0:
+            state.time_synced = await time_svc.sync_ntp()
+            if state.time_synced:
+                _ntp_retry_wait_ms = 0
+                state.status_dirty = True
+            else:
+                _ntp_retry_wait_ms = ntp_retry_ms
 
         if online:
-            await asyncio.sleep_ms(wifi_check_ms)
+            sleep_ms = wifi_check_ms
+            if (not state.time_synced) and _ntp_retry_wait_ms > 0 and _ntp_retry_wait_ms < sleep_ms:
+                sleep_ms = _ntp_retry_wait_ms
+
+            await asyncio.sleep_ms(sleep_ms)
+
+            if (not state.time_synced) and _ntp_retry_wait_ms > 0:
+                _ntp_retry_wait_ms -= sleep_ms
+                if _ntp_retry_wait_ms < 0:
+                    _ntp_retry_wait_ms = 0
         elif wifi_svc.assoc_fail:
+            _ntp_retry_wait_ms = 0
             _assoc_fail_count += 1
             _assoc_fail_state_save_count(cfg, _assoc_fail_count)
             await _handle_assoc_fail_backoff(state, wifi_svc, cfg, _assoc_fail_count)
         else:
+            _ntp_retry_wait_ms = 0
             await asyncio.sleep_ms(wifi_offline_retry_ms)
 
 
@@ -894,6 +966,31 @@ async def esp_status_task(state, wifi_svc):
         await asyncio.sleep_ms(refresh_ms)
 
 
+def _dns_prewarm(cfg):
+    time_cfg = cfg.get("time", {}) if isinstance(cfg, dict) else {}
+    host = time_cfg.get("ntp_server", "pool.ntp.org")
+    if not isinstance(host, str) or not host:
+        host = "pool.ntp.org"
+
+    try:
+        try:
+            import usocket as _socket
+        except ImportError:
+            import socket as _socket
+
+        _socket.getaddrinfo(host, 123)
+        print("[WiFi] DNS pre-warm ok (%s)" % host)
+        return True
+    except OSError as exc:
+        print("[WiFi] DNS pre-warm failed: %s" % exc)
+        return False
+    except Exception as exc:
+        print("[WiFi] DNS pre-warm error: %s" % exc)
+        return False
+    finally:
+        gc.collect()
+
+
 async def app_main():
     print("\n================================================")
     print("  Retro Weather Clock MicroPython")
@@ -991,6 +1088,10 @@ async def app_main():
 
     weather_enabled = bool(cfg["weather"].get("enabled", True))
     startup_bootstrap_enabled = bool(cfg["weather"].get("startup_bootstrap", False))
+
+    if online and (not weather_enabled or not startup_bootstrap_enabled):
+        if not _dns_prewarm(cfg):
+            _bootstrap_dns_failed = True
 
     if online and weather_enabled and startup_bootstrap_enabled:
         _boot_heap = gc.mem_free()
@@ -1124,8 +1225,9 @@ async def app_main():
     # If bootstrap DNS failed, the lwIP DNS table is full/stuck.
     # Schedule an immediate WiFi reconnect so wifi_task flushes the lwIP stack
     # on its first cycle (~5s) instead of waiting for weather_task's 220s backoff.
-    if _bootstrap_dns_failed:
-        print("[OWM] Bootstrap DNS failed — weather_task will retry with backoff")
+    if _bootstrap_dns_failed and online:
+        state.force_wifi_reconnect = True
+        print("[OWM] Bootstrap DNS failed — scheduling WiFi reconnect")
 
     if startup_weather is not None:
         state.weather = startup_weather
