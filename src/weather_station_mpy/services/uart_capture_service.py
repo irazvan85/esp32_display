@@ -34,6 +34,11 @@ except ImportError:
     import json as ujson
 
 try:
+    ubinascii = __import__("ubinascii")
+except ImportError:
+    import binascii as ubinascii
+
+try:
     _time = __import__("time")
 except ImportError:
     _time = None
@@ -41,6 +46,7 @@ except ImportError:
 
 _PAGE_MIN = 0
 _PAGE_MAX = 5
+_FRAME_CHUNK_BYTES = 192
 
 
 def _safe(value, default=None):
@@ -93,6 +99,42 @@ def _ticks_ms_value():
         return 0
 
 
+def _pixel_capture_obj(state):
+    return getattr(state, "pixel_capture", None)
+
+
+def _pixel_capture_status(state):
+    capture = _pixel_capture_obj(state)
+    if capture is None:
+        return {
+            "available": False,
+            "supported": False,
+            "armed": False,
+        }
+
+    try:
+        status = capture.status()
+    except Exception as exc:
+        return {
+            "available": True,
+            "supported": True,
+            "armed": False,
+            "error": str(exc),
+        }
+
+    if not isinstance(status, dict):
+        return {
+            "available": True,
+            "supported": True,
+            "armed": False,
+        }
+
+    status["available"] = True
+    status.setdefault("supported", True)
+    status.setdefault("armed", False)
+    return status
+
+
 def _build_snapshot(state):
     """Build a serialisable dict from the current AppState."""
     return {
@@ -100,6 +142,7 @@ def _build_snapshot(state):
         "enabled_pages": _safe(state.enabled_pages, []),
         "metrics_subpage": int(getattr(state, "metrics_subpage", 0)),
         "display_capture": _safe(getattr(state, "display_capture", {}), {}),
+        "pixel_capture": _safe(_pixel_capture_status(state), {}),
         "local_time": _safe(_local_time_value(), None),
         "snapshot_ms": int(_ticks_ms_value()),
         "wifi_online": bool(state.wifi_online),
@@ -128,6 +171,55 @@ def _emit_snapshot(state):
         print(">>SNAP_END")
     except (TypeError, ValueError, OSError, RuntimeError) as exc:
         print(">>SNAP_ERR %s" % exc)
+    gc.collect()
+
+
+def _emit_frame_dump(state):
+    gc.collect()
+    capture = _pixel_capture_obj(state)
+    if capture is None:
+        print(">>FRAME_ERR capture unavailable")
+        gc.collect()
+        return
+
+    try:
+        meta, frame_buf, error = capture.frame_dump()
+    except Exception as exc:
+        print(">>FRAME_ERR %s" % exc)
+        gc.collect()
+        return
+
+    if frame_buf is None:
+        if error:
+            print(">>FRAME_ERR %s" % error)
+        else:
+            print(">>FRAME_ERR frame unavailable")
+        gc.collect()
+        return
+
+    if not isinstance(meta, dict):
+        meta = {}
+    meta.setdefault("chunk_bytes", _FRAME_CHUNK_BYTES)
+    meta["byte_len"] = int(len(frame_buf))
+
+    print(">>FRAME_START")
+    print(ujson.dumps(meta))
+
+    total = len(frame_buf)
+    offset = 0
+    while offset < total:
+        chunk = frame_buf[offset : offset + _FRAME_CHUNK_BYTES]
+        try:
+            encoded = ubinascii.hexlify(chunk).decode("ascii")
+        except Exception as exc:
+            print(">>FRAME_ERR encode %s" % exc)
+            gc.collect()
+            return
+
+        print(">>FRAME_CHUNK %d %s" % (offset, encoded))
+        offset += len(chunk)
+
+    print(">>FRAME_END")
     gc.collect()
 
 
@@ -184,7 +276,10 @@ def _handle_command(state, cmd):
     verb = parts[0].upper()
 
     if verb == "!HELP":
-        return "EMIT", ">>CMD_OK HELP !SNAP !PAGE <0-5> !NEXT !SUBPAGE <0|1>"
+        return (
+            "EMIT",
+            ">>CMD_OK HELP !SNAP !PAGE <0-5> !NEXT !SUBPAGE <0|1> !CAPTURE <ARM|DISARM|STATUS> !FRAME DUMP",
+        )
 
     if verb == "!NEXT":
         page = _next_enabled_page(getattr(state, "page", 0), getattr(state, "enabled_pages", []))
@@ -237,6 +332,51 @@ def _handle_command(state, cmd):
         _set_true_flag(state, "status_dirty")
         return "EMIT", ">>CMD_OK SUBPAGE %d" % subpage
 
+    if verb == "!CAPTURE":
+        if len(parts) != 2:
+            return "EMIT", ">>CMD_ERR CAPTURE usage !CAPTURE <ARM|DISARM|STATUS>"
+
+        action = parts[1].upper()
+        if action == "STATUS":
+            status = _pixel_capture_status(state)
+            armed = bool(status.get("armed", False))
+            available = bool(status.get("available", False))
+            supported = bool(status.get("supported", False))
+            return (
+                "EMIT",
+                ">>CMD_OK CAPTURE STATUS available=%d supported=%d armed=%d"
+                % (1 if available else 0, 1 if supported else 0, 1 if armed else 0),
+            )
+
+        capture = _pixel_capture_obj(state)
+        if capture is None:
+            return "EMIT", ">>CMD_ERR CAPTURE unavailable"
+
+        if action == "ARM":
+            try:
+                ok, message = capture.arm("uart")
+            except Exception as exc:
+                return "EMIT", ">>CMD_ERR CAPTURE arm exception %s" % exc
+            if ok:
+                return "EMIT", ">>CMD_OK CAPTURE ARM %s" % message
+            return "EMIT", ">>CMD_ERR CAPTURE ARM %s" % message
+
+        if action == "DISARM":
+            try:
+                ok, message = capture.disarm("uart")
+            except Exception as exc:
+                return "EMIT", ">>CMD_ERR CAPTURE disarm exception %s" % exc
+            if ok:
+                return "EMIT", ">>CMD_OK CAPTURE DISARM %s" % message
+            return "EMIT", ">>CMD_ERR CAPTURE DISARM %s" % message
+
+        return "EMIT", ">>CMD_ERR CAPTURE invalid action"
+
+    if verb == "!FRAME":
+        if len(parts) != 2 or parts[1].upper() != "DUMP":
+            return "EMIT", ">>CMD_ERR FRAME usage !FRAME DUMP"
+        return "FRAME", ""
+
     return "EMIT", ">>CMD_ERR unknown command"
 
 
@@ -270,6 +410,9 @@ async def uart_capture_task(state):
                     if action == "SNAP":
                         print("[SNAP] Snapshot triggered")
                         _emit_snapshot(state)
+                    elif action == "FRAME":
+                        print("[SNAP] Frame dump triggered")
+                        _emit_frame_dump(state)
                     elif action == "EMIT":
                         print(payload)
                 else:

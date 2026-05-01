@@ -238,3 +238,41 @@ def test_main_all_pages_cli_failure_exits_nonzero(monkeypatch, tmp_path):
 
     assert exc_info.value.code == 1
     assert out_file.exists()
+
+
+def test_frame_dump_parses_chunked_hex_payload():
+    module = _load_capture_display_module()
+    fake = _FakeSerial(
+        [
+            ">>FRAME_START",
+            '{"width":2,"height":1,"format":"RGB565","byte_len":4}',
+            ">>FRAME_CHUNK 0 0000ffff",
+            ">>FRAME_END",
+        ]
+    )
+
+    frame, error = module._frame_dump_from_open_serial(fake, timeout_s=1)
+
+    assert error == ""
+    assert frame is not None
+    assert frame["meta"]["width"] == 2
+    assert frame["meta"]["height"] == 1
+    assert frame["bytes"] == b"\x00\x00\xff\xff"
+    assert fake.writes == [b"!FRAME DUMP\r\n"]
+
+
+def test_save_rgb565_ppm_writes_expected_header_and_size(tmp_path):
+    module = _load_capture_display_module()
+    ppm_path = tmp_path / "frame.ppm"
+
+    frame_payload = {
+        "meta": {"width": 2, "height": 1, "format": "RGB565", "byte_len": 4},
+        "bytes": b"\x00\x00\xff\xff",
+    }
+
+    module._save_rgb565_ppm(frame_payload, ppm_path)
+    payload = ppm_path.read_bytes()
+
+    assert payload.startswith(b"P6\n2 1\n255\n")
+    # Header (11 bytes) + 2 pixels * 3 bytes RGB = 17
+    assert len(payload) == 17

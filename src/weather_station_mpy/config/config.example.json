@@ -36,5 +36,12 @@
   },
   "display": {
     "backlight_on": true
+  },
+  "debug": {
+    "test_mode": false,
+    "pixel_capture_enabled": false,
+    "pixel_capture_arm_on_boot": false,
+    "pixel_capture_min_heap_kb": 96,
+    "pixel_capture_max_fps": 2
   }
 }

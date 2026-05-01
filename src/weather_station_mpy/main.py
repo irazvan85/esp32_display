@@ -991,6 +991,7 @@ def _dns_prewarm(cfg):
         gc.collect()
 
 
+
 async def app_main():
     print("\n================================================")
     print("  Retro Weather Clock MicroPython")
@@ -1221,6 +1222,11 @@ async def app_main():
     state.wifi_online = online
     state.time_synced = synced
     state.web_ready = _web_server_sock is not None or not bool(cfg.get("web", {}).get("enabled", False))
+    try:
+        _pc = __import__("ui.pixel_capture", None, None, ("setup",))
+        _pc.setup(state, display, cfg)
+    except Exception:
+        pass
 
     # If bootstrap DNS failed, the lwIP DNS table is full/stuck.
     # Schedule an immediate WiFi reconnect so wifi_task flushes the lwIP stack

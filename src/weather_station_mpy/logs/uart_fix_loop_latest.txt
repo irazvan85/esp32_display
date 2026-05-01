@@ -11,35 +11,9 @@ MPY: soft reboot
 [WiFi] prealloc status: active
 [WiFi] startup connect attempt 1/4
 [WiFi] Connecting to IOT
-[WiFi] status=1000
-[WiFi] status=15
-[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
-[WiFi] Connect timeout - offline mode
-[WiFi] startup connect attempt 2/4
-[WiFi] Connecting to IOT
-[WiFi] status=1001
-[WiFi] Connect timeout - offline mode
-[WiFi] startup connect attempt 3/4
-[WiFi] Connecting to IOT
-[WiFi] status=1001
-[WiFi] Connect timeout - offline mode
-[WiFi] startup connect attempt 4/4
-[WiFi] Connecting to IOT
 [WiFi] status=1001
 [WiFi] status=15
 [WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
 [WiFi] Connect timeout - offline mode
-[DISP] ST7789 initialized (improved UI)
-[OWM] startup weather unavailable; trying cache
-[WiFi] Connecting to IOT
-[WEB] Disabled in config
-[MEM] Free heap: 69728 bytes
-[ESP] RAM 68kB free  CPU 160MHz
-[Solar] Disabled in config
-[WiFi] status=1001
-[ESP] RAM 66kB free  CPU 160MHz
-[WiFi] Connect timeout - offline mode
-[WiFi] Connecting to IOT
-[WiFi] status=1001
-[ESP] RAM 66kB free  CPU 160MHz
-[WiFi] Connect timeout - offline mode
+[WiFi] startup ASSOC_FAIL #1 - quick cooldown 15s before retry
+[WiFi] radio OFF during backoff

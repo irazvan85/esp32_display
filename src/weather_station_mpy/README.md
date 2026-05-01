@@ -131,6 +131,34 @@ The correct boot order is required to avoid lwIP PCB/DNS memory exhaustion:
 | `wifi.assoc_fail_long_cooldown_after_n` | `4` | Consecutive ASSOC_FAIL threshold that triggers long quiet window |
 | `wifi.assoc_fail_long_cooldown_s` | `720` | Long radio-off quiet window duration in seconds |
 
+### Test-only pixel capture (debug)
+
+The firmware now includes an optional **test-only** pixel mirror and frame dump path.
+
+- Disabled by default (`debug.test_mode=false`, `debug.pixel_capture_enabled=false`).
+- Guarded by config + runtime arm command:
+  - `debug.test_mode=true`
+  - `debug.pixel_capture_enabled=true`
+  - UART command `!CAPTURE ARM`
+- Frame export command: `!FRAME DUMP`
+- Disarm command: `!CAPTURE DISARM`
+
+Debug keys:
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `debug.test_mode` | `false` | Master guard for test-only features |
+| `debug.pixel_capture_enabled` | `false` | Enables pixel mirror module (requires `test_mode=true`) |
+| `debug.pixel_capture_arm_on_boot` | `false` | Arms capture on startup (test benches only) |
+| `debug.pixel_capture_min_heap_kb` | `96` | Minimum free heap floor to allow capture arm |
+| `debug.pixel_capture_max_fps` | `2` | Max frame dump rate guard |
+
+Host capture usage:
+
+```powershell
+python tools/capture_display.py --port COM13 --pixel-frame --pixel-output snapshot.ppm
+```
+
 ## WiFi behavior
 
 ### [WiFi/BOOT] Startup order requirement

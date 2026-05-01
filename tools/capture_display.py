@@ -7,9 +7,13 @@ Usage:
     python tools/capture_display.py --port COM13
     python tools/capture_display.py --port COM13 --all-pages
     python tools/capture_display.py --port COM13 --all-pages --pages 0,1,2,3,4,5
+    python tools/capture_display.py --port COM13 --pixel-frame --pixel-output snapshot.ppm
 
 The script uses `display_capture` when available; otherwise it derives visible
 page fields from snapshot data using the same page rules used by the UI.
+
+When `--pixel-frame` is used, the script also requests a raw RGB565 frame dump
+from the device (test-mode capture only) and writes a host-decoded PPM image.
 """
 
 from __future__ import annotations
@@ -472,6 +476,152 @@ def _snapshot_from_open_serial(ser, timeout_s=15):
             lines.append(line)
 
     return None, "snapshot timeout"
+
+
+def _frame_dump_from_open_serial(ser, timeout_s=45):
+    """Send !FRAME DUMP and parse one chunked frame payload.
+
+    Returns (frame_payload_or_none, error_string_or_empty).
+    frame_payload shape: {"meta": {...}, "bytes": b"..."}
+    """
+    ser.write(b"!FRAME DUMP\r\n")
+    ser.flush()
+
+    started = False
+    meta = None
+    chunks = []
+    expected_offset = 0
+    deadline = time.time() + timeout_s
+
+    while time.time() < deadline:
+        line = _readline_text(ser)
+        if not line:
+            continue
+
+        if line == ">>FRAME_START":
+            started = True
+            meta = None
+            chunks = []
+            expected_offset = 0
+            continue
+
+        if line.startswith(">>FRAME_ERR"):
+            return None, line
+
+        if not started:
+            continue
+
+        if line == ">>FRAME_END":
+            payload = b"".join(chunks)
+            if not isinstance(meta, dict):
+                meta = {}
+            expected = _safe_int(meta.get("byte_len"), 0)
+            if expected and expected != len(payload):
+                return None, "frame size mismatch: expected %d got %d" % (expected, len(payload))
+            meta["byte_len"] = len(payload)
+            return {"meta": meta, "bytes": payload}, ""
+
+        if meta is None:
+            try:
+                meta = json.loads(line)
+            except json.JSONDecodeError as exc:
+                return None, "frame meta decode error: %s" % exc
+            continue
+
+        if not line.startswith(">>FRAME_CHUNK "):
+            continue
+
+        parts = line.split(" ", 2)
+        if len(parts) != 3:
+            return None, "invalid frame chunk format"
+
+        try:
+            offset = int(parts[1])
+        except ValueError as exc:
+            return None, "invalid frame chunk offset: %s" % exc
+
+        if offset != expected_offset:
+            return None, "frame chunk offset mismatch: got %d expected %d" % (offset, expected_offset)
+
+        try:
+            chunk = bytes.fromhex(parts[2].strip())
+        except ValueError as exc:
+            return None, "invalid frame chunk hex: %s" % exc
+
+        chunks.append(chunk)
+        expected_offset += len(chunk)
+
+    return None, "frame timeout"
+
+
+def _save_rgb565_ppm(frame_payload, output_path):
+    """Save RGB565 frame bytes as binary PPM (P6) image."""
+    if not isinstance(frame_payload, dict):
+        raise ValueError("invalid frame payload")
+
+    meta = frame_payload.get("meta") if isinstance(frame_payload.get("meta"), dict) else {}
+    data = frame_payload.get("bytes")
+    if not isinstance(data, (bytes, bytearray)):
+        raise ValueError("frame payload bytes missing")
+
+    width = _safe_int(meta.get("width"), 0)
+    height = _safe_int(meta.get("height"), 0)
+    if width <= 0 or height <= 0:
+        raise ValueError("invalid frame dimensions")
+
+    expected = width * height * 2
+    if len(data) < expected:
+        raise ValueError("frame payload too short: got %d expected %d" % (len(data), expected))
+    if len(data) > expected:
+        data = data[:expected]
+
+    rgb = bytearray(width * height * 3)
+    mv = memoryview(data)
+    out_idx = 0
+    for idx in range(0, expected, 2):
+        val = (mv[idx] << 8) | mv[idx + 1]
+        r = ((val >> 11) & 0x1F) * 255 // 31
+        g = ((val >> 5) & 0x3F) * 255 // 63
+        b = (val & 0x1F) * 255 // 31
+        rgb[out_idx] = r
+        rgb[out_idx + 1] = g
+        rgb[out_idx + 2] = b
+        out_idx += 3
+
+    header = ("P6\n%d %d\n255\n" % (width, height)).encode("ascii")
+    output_path.write_bytes(header + rgb)
+
+
+def capture_snapshot_with_pixel_frame(port, baud=115200, timeout_s=15, frame_timeout_s=45):
+    """Capture one snapshot and one RGB565 frame in a single armed UART session."""
+    print("[capture] Opening %s at %d baud" % (port, baud))
+    try:
+        ser = serial.Serial(port, baud, timeout=1)
+    except serial.SerialException as exc:
+        return None, None, "serial open failed: %s" % exc
+
+    with ser:
+        ser.reset_input_buffer()
+        time.sleep(0.1)
+
+        ok, ack = send_command(ser, "!CAPTURE ARM", timeout_s=min(timeout_s, 5))
+        if not ok:
+            return None, None, "capture arm failed: %s" % ack
+
+        try:
+            data, snap_error = _snapshot_from_open_serial(ser, timeout_s=timeout_s)
+            if data is None:
+                return None, None, "snapshot failed: %s" % snap_error
+
+            frame_payload, frame_error = _frame_dump_from_open_serial(ser, timeout_s=frame_timeout_s)
+            if frame_payload is None:
+                return data, None, "frame failed: %s" % frame_error
+
+            return data, frame_payload, ""
+        finally:
+            disarm_ok, disarm_ack = send_command(ser, "!CAPTURE DISARM", timeout_s=3)
+            if not disarm_ok:
+                print("[capture] WARN: capture disarm failed: %s" % disarm_ack)
 
 
 def send_command(ser, command, timeout_s=5):
@@ -973,7 +1123,23 @@ def main():
     parser.add_argument("--baud", type=int, default=115200, help="Baud rate (default: 115200)")
     parser.add_argument("--output", default="snapshot.html", help="Output HTML file (default: snapshot.html)")
     parser.add_argument("--timeout", type=int, default=15, help="Seconds to wait for each snapshot (default: 15)")
+    parser.add_argument(
+        "--frame-timeout",
+        type=int,
+        default=45,
+        help="Seconds to wait for !FRAME DUMP payload when --pixel-frame is used (default: 45)",
+    )
     parser.add_argument("--all-pages", action="store_true", help="Capture and validate all enabled pages")
+    parser.add_argument(
+        "--pixel-frame",
+        action="store_true",
+        help="Also capture one raw RGB565 frame (requires test-mode capture on device)",
+    )
+    parser.add_argument(
+        "--pixel-output",
+        default="",
+        help="Output PPM image path for --pixel-frame (default: <output stem>.ppm)",
+    )
     parser.add_argument(
         "--pages",
         default="",
@@ -989,9 +1155,26 @@ def main():
 
     output_path = Path(args.output)
 
+    if args.all_pages and args.pixel_frame:
+        print("[capture] ERROR: --pixel-frame is only supported for single-snapshot mode")
+        sys.exit(2)
+
     if not args.all_pages:
-        data = trigger_snapshot(args.port, baud=args.baud, timeout_s=args.timeout)
+        frame_payload = None
+        frame_error = ""
+        if args.pixel_frame:
+            data, frame_payload, frame_error = capture_snapshot_with_pixel_frame(
+                args.port,
+                baud=args.baud,
+                timeout_s=args.timeout,
+                frame_timeout_s=args.frame_timeout,
+            )
+        else:
+            data = trigger_snapshot(args.port, baud=args.baud, timeout_s=args.timeout)
+
         if data is None:
+            if frame_error:
+                print("[capture] ERROR: %s" % frame_error)
             sys.exit(1)
 
         print(
@@ -1003,6 +1186,20 @@ def main():
             )
         )
         render_html(data, output_path)
+
+        if args.pixel_frame:
+            if frame_payload is None:
+                print("[capture] ERROR: %s" % (frame_error or "frame capture failed"))
+                sys.exit(1)
+
+            pixel_path = Path(args.pixel_output) if args.pixel_output else output_path.with_suffix(".ppm")
+            try:
+                _save_rgb565_ppm(frame_payload, pixel_path)
+            except ValueError as exc:
+                print("[capture] ERROR: %s" % exc)
+                sys.exit(1)
+            print("[capture] Pixel frame saved -> %s" % pixel_path)
+
         return
 
     try:

@@ -76,6 +76,34 @@ class _FakeState:
             "page": 2,
             "visible_text": ["Tue +8/+15 Clouds", "no wx", "[3/6]"],
         }
+        self.pixel_capture = _FakePixelCapture()
+
+
+class _FakePixelCapture:
+    def __init__(self):
+        self._armed = False
+
+    def status(self):
+        return {
+            "supported": True,
+            "armed": self._armed,
+            "width": 240,
+            "height": 135,
+            "format": "RGB565",
+        }
+
+    def arm(self, _reason):
+        self._armed = True
+        return True, "capture armed"
+
+    def disarm(self, _reason):
+        self._armed = False
+        return True, "capture disarmed"
+
+    def frame_dump(self):
+        if not self._armed:
+            return None, None, "capture not armed"
+        return ({"width": 2, "height": 1, "format": "RGB565"}, b"\x00\x00\xff\xff", "")
 
 
 class TestBuildSnapshot(unittest.TestCase):
@@ -91,6 +119,7 @@ class TestBuildSnapshot(unittest.TestCase):
             "enabled_pages",
             "metrics_subpage",
             "display_capture",
+            "pixel_capture",
             "local_time",
             "snapshot_ms",
             "wifi_online",
@@ -227,6 +256,32 @@ class TestCommandHelpers(unittest.TestCase):
         action, payload = self._handle_command(state, "!BOGUS")
         self.assertEqual(action, "EMIT")
         self.assertEqual(payload, ">>CMD_ERR unknown command")
+
+    def test_capture_status_reports_fields(self):
+        state = _FakeState()
+        action, payload = self._handle_command(state, "!CAPTURE STATUS")
+        self.assertEqual(action, "EMIT")
+        self.assertIn(">>CMD_OK CAPTURE STATUS", payload)
+        self.assertIn("available=1", payload)
+        self.assertIn("supported=1", payload)
+        self.assertIn("armed=0", payload)
+
+    def test_capture_arm_and_disarm(self):
+        state = _FakeState()
+
+        action, payload = self._handle_command(state, "!CAPTURE ARM")
+        self.assertEqual(action, "EMIT")
+        self.assertIn(">>CMD_OK CAPTURE ARM", payload)
+
+        action, payload = self._handle_command(state, "!CAPTURE DISARM")
+        self.assertEqual(action, "EMIT")
+        self.assertIn(">>CMD_OK CAPTURE DISARM", payload)
+
+    def test_frame_dump_command_returns_frame_action(self):
+        state = _FakeState()
+        action, payload = self._handle_command(state, "!FRAME DUMP")
+        self.assertEqual(action, "FRAME")
+        self.assertEqual(payload, "")
 
 
 if __name__ == "__main__":

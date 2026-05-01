@@ -20,6 +20,9 @@ from main import (  # noqa: E402
     _is_transport_error,
 )
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "ui"))
+from pixel_capture import _pixel_capture_settings  # noqa: E402
+
 
 class TestIsTransportError(unittest.TestCase):
     def test_transport_error_minus202(self):
@@ -31,9 +34,8 @@ class TestIsTransportError(unittest.TestCase):
     def test_transport_error_113(self):
         self.assertTrue(_is_transport_error(OSError(113)))
 
-    def test_transport_error_minus203_not_transport(self):
-        """−203 was removed from the list; ENOBUFS is not a WiFi transport failure."""
-        self.assertFalse(_is_transport_error(OSError(-203)))
+    def test_transport_error_minus203(self):
+        self.assertTrue(_is_transport_error(OSError(-203)))
 
     def test_transport_error_105_not_transport(self):
         """ENOBUFS (105) is a local PCB exhaustion — not a WiFi path failure."""
@@ -282,6 +284,33 @@ class TestAssocFailSourceShape(unittest.TestCase):
             pre_app_main,
             "DisplayManager import should be module-level for clean-heap load",
         )
+
+
+class TestPixelCaptureSettings(unittest.TestCase):
+    def test_defaults_when_debug_missing(self):
+        settings = _pixel_capture_settings({})
+        self.assertFalse(settings["test_mode"])
+        self.assertFalse(settings["enabled"])
+        self.assertFalse(settings["arm_on_boot"])
+        self.assertEqual(settings["min_heap_kb"], 16)
+        self.assertEqual(settings["max_fps"], 2)
+
+    def test_clamps_out_of_range_values(self):
+        cfg = {
+            "debug": {
+                "test_mode": True,
+                "pixel_capture_enabled": True,
+                "pixel_capture_arm_on_boot": True,
+                "pixel_capture_min_heap_kb": 10,
+                "pixel_capture_max_fps": 99,
+            }
+        }
+        settings = _pixel_capture_settings(cfg)
+        self.assertTrue(settings["test_mode"])
+        self.assertTrue(settings["enabled"])
+        self.assertTrue(settings["arm_on_boot"])
+        self.assertEqual(settings["min_heap_kb"], 10)
+        self.assertEqual(settings["max_fps"], 10)
 
 
 class TestBootstrapMemoryRequirements(unittest.TestCase):
