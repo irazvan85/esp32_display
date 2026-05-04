@@ -76,10 +76,10 @@ try {
     Write-Host "[DEPLOY] copy _main.mpy"
     Invoke-Mpremote connect $Port soft-reset fs cp "_main.mpy" ":/_main.mpy"
 
-    # Write the boot stub as main.py directly on device (avoids BOM issues with Out-File).
-    Write-Host "[DEPLOY] write main.py stub"
-    $stubContent = "# Boot stub: pre-load display_manager before _main.mpy fragments heap`nimport gc`ngc.collect()`nfrom ui.display_manager import DisplayManager`ngc.collect()`nimport _main`nimport asyncio`ntry:`n    asyncio.run(_main.app_main())`nfinally:`n    asyncio.new_event_loop()`n"
-    Invoke-Mpremote connect $Port exec "f=open('/main.py','w'); f.write('$stubContent'); f.close()"
+        # Deploy the checked-in ASCII stub as main.py. Keep it BOM-free so
+        # MicroPython can execute it directly at boot.
+        Write-Host "[DEPLOY] copy main_stub.py -> main.py"
+        Invoke-Mpremote connect $Port soft-reset fs cp "main_stub.py" ":/main.py"
 
     # Other top-level source files.
     $topFiles = @(
