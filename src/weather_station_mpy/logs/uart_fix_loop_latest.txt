@@ -1,19 +1,24 @@
-
-MPY: soft reboot
-[BOOT] weather_station_mpy boot.py
-[BOOT] WiFi DMA pool reserved (clean state)
-[BOOT] SPI2 stale state cleared
-
-================================================
-  Retro Weather Clock MicroPython
-================================================
-
-[WiFi] prealloc status: active
-[WiFi] startup connect attempt 1/4
-[WiFi] Connecting to IOT
-[WiFi] status=1001
-[WiFi] status=15
-[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
-[WiFi] Connect timeout - offline mode
-[WiFi] startup ASSOC_FAIL #1 - quick cooldown 15s before retry
+[WiFi] persisted ASSOC_FAIL #17 - deferring startup connect to wifi_task policy
+[DISP] ST7789 initialized (improved UI)
+[OWM] startup weather unavailable; trying cache
+[OWM] startup weather fallback: offline placeholder
+[CAP] pixel capture ready (test mode)
+[CAP] arm failed: low heap (62896 < 163104)
+[WiFi] ASSOC_FAIL #17 - radio off, quiet window 720s (next retry in 720s)
 [WiFi] radio OFF during backoff
+[WEB] Disabled in config
+[MEM] Free heap: 49776 bytes
+[ESP] RAM 48kB free  CPU 160MHz
+[Solar] Disabled in config
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[MEM] Free heap: 49456 bytes
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz
+[ESP] RAM 48kB free  CPU 160MHz

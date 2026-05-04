@@ -314,11 +314,12 @@ class TestWifiServiceEnsureConnected(unittest.IsolatedAsyncioTestCase):
             result = await svc.ensure_connected()
             self.assertFalse(result)
             self.assertEqual(mock_wlan.connect.call_count, 1)
-            # _prepare_sta_for_connect calls active(False) and active(True)
+            # status=15 triggers the initial _prepare_sta_for_connect AND the
+            # scan-retry radio cycle (active False/True each); expect 2 of each.
             active_true_calls = [c for c in mock_wlan.active.call_args_list if c.args == (True,)]
             active_false_calls = [c for c in mock_wlan.active.call_args_list if c.args == (False,)]
-            self.assertEqual(len(active_true_calls), 1)
-            self.assertEqual(len(active_false_calls), 1)
+            self.assertEqual(len(active_true_calls), 2)
+            self.assertEqual(len(active_false_calls), 2)
         finally:
             wf_module.asyncio = original_asyncio
 

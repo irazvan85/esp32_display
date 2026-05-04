@@ -207,7 +207,7 @@ class TestDefaultConfigAssocFailKeys(unittest.TestCase):
         self.assertEqual(wifi["assoc_fail_startup_quick_retry_ms"], 15_000)
         self.assertEqual(wifi["assoc_fail_long_cooldown_after_n"], 3)
         self.assertEqual(wifi["assoc_fail_long_cooldown_s"], 720)
-        self.assertFalse(wifi["assoc_fail_state_enabled"])
+        self.assertTrue(wifi["assoc_fail_state_enabled"])
         self.assertEqual(wifi["assoc_fail_state_path"], "wifi_assoc_fail_state.json")
 
 

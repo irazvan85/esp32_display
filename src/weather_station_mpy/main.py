@@ -226,7 +226,7 @@ def _with_backoff_jitter(base_ms, jitter_pct):
 def _assoc_fail_backoff_ms(assoc_fail_count, cfg):
     wifi_cfg = cfg.get("wifi", {})
 
-    jitter_pct = int(wifi_cfg.get("assoc_fail_backoff_jitter_pct", 10))
+    jitter_pct = int(wifi_cfg.get("assoc_fail_backoff_jitter_pct", 0))
     if jitter_pct < 0:
         jitter_pct = 0
     if jitter_pct > 30:
@@ -1046,7 +1046,10 @@ async def app_main():
     else:
         for attempt in range(startup_retries):
             print("[WiFi] startup connect attempt %d/%d" % (attempt + 1, startup_retries))
-            online = await wifi_svc.ensure_connected(allow_scan_retry=False)
+            # Allow BSSID scan retry on the final attempt — this is the last chance
+            # before the firmware enters the long assoc_fail quiet window.
+            is_last = (attempt == startup_retries - 1)
+            online = await wifi_svc.ensure_connected(allow_scan_retry=is_last)
             if online:
                 break
             if wifi_svc.assoc_fail:
@@ -1063,6 +1066,16 @@ async def app_main():
 
                 startup_assoc_fail_pending = True
                 print("[WiFi] startup ASSOC_FAIL detected - deferring retries to wifi_task policy")
+                # Hard-reset now so the second boot has a clean heap.
+                # Multiple ASSOC_FAIL retry cycles fragment DMA-capable RAM;
+                # display.init() requires a contiguous ~12 KB DMA block and
+                # will abort() the IDF if it can't allocate one.
+                print("[WiFi] Hard reset to reclaim fragmented heap before display init")
+                try:
+                    import machine as _machine_rst
+                    _machine_rst.reset()
+                except Exception:
+                    pass
                 break
             if attempt < startup_retries - 1:
                 await asyncio.sleep_ms(startup_retry_ms)
@@ -1071,6 +1084,11 @@ async def app_main():
         startup_assoc_fail_count = 0
         startup_assoc_fail_pending = False
         _assoc_fail_state_clear(cfg)
+
+    # Aggressive GC after the startup WiFi loop.  Repeated ASSOC_FAIL cycles
+    # can leave fragmented allocations that prevent the SPI DMA buffer allocation
+    # in display.init() from finding a contiguous free block.
+    gc.collect()
 
     synced = await time_svc.sync_ntp() if online else False
 
@@ -1229,11 +1247,11 @@ async def app_main():
         pass
 
     # If bootstrap DNS failed, the lwIP DNS table is full/stuck.
-    # Schedule an immediate WiFi reconnect so wifi_task flushes the lwIP stack
-    # on its first cycle (~5s) instead of waiting for weather_task's 220s backoff.
-    if _bootstrap_dns_failed and online:
-        state.force_wifi_reconnect = True
-        print("[OWM] Bootstrap DNS failed — scheduling WiFi reconnect")
+    # Do NOT force-reconnect here: rapid re-association causes ASSOC_FAIL.
+    # wifi_task's own offline_retry path will flush the lwIP stack on its
+    # first reconnect cycle; weather_task retries with its own backoff.
+    if _bootstrap_dns_failed:
+        print("[OWM] Bootstrap DNS failed — weather_task will retry with backoff")
 
     if startup_weather is not None:
         state.weather = startup_weather

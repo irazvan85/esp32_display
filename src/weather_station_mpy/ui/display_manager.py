@@ -156,6 +156,11 @@ class DisplayManager:
                 rotation=board.DISPLAY_ROTATION,
             )
             self._tft.init()
+        except MemoryError:
+            # Re-raise so the caller can gc.collect() and retry display init
+            # without a full hard reset.  Only stale SPI bus state (not OOM)
+            # requires a hard reset.
+            raise
         except Exception as _spi_err:
             # SPI bus initialisation failed — most likely a stale IDF driver
             # state after a MicroPython soft reset.  A hard reset (SW_CPU_RESET)

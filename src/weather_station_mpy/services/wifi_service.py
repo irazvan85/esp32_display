@@ -99,14 +99,16 @@ class WifiService:
         if self._wlan is None:
             return
 
+        reconnects = getattr(self, '_wlan_reconnects', _DEFAULT_RECONNECTS)
         try:
-            self._wlan.config(reconnects=self._wlan_reconnects)
+            self._wlan.config(reconnects=reconnects)
         except Exception:
             pass
 
-        if self._wlan_pm is not None:
+        pm = getattr(self, '_wlan_pm', None)
+        if pm is not None:
             try:
-                self._wlan.config(pm=self._wlan_pm)
+                self._wlan.config(pm=pm)
             except Exception:
                 pass
 
@@ -366,9 +368,21 @@ class WifiService:
             and cfg_bssid is None
             and self._should_scan_retry(last_status, timed_out)
         ):
+            # After ASSOC_FAIL the radio is in an error state.  wlan.scan() returns
+            # ESP_ERR_INVALID_STATE (0x0102) unless we cycle active(False/True) first.
+            # A minimal radio cycle is sufficient to clear the state.
+            try:
+                self._wlan.active(False)
+            except Exception:
+                pass
+            await asyncio.sleep_ms(500)
+            try:
+                self._wlan.active(True)
+            except Exception:
+                pass
             scanned_bssid = self._scan_best_bssid(ssid, allow_low_heap=True)
             if scanned_bssid is not None:
-                print("[WiFi] retry with scanned bssid")
+                print("[WiFi] BSSID scan found AP, retrying with pinned BSSID")
                 await self._prepare_sta_for_connect()
                 try:
                     try:
@@ -379,6 +393,8 @@ class WifiService:
                     print("[WiFi] bssid retry connect() error: %s" % exc)
                 else:
                     last_status, timed_out = await _wait_for_connect()
+            else:
+                print("[WiFi] BSSID scan: AP not visible, cannot pin BSSID")
 
         if self._is_assoc_fail_status(last_status):
             self.assoc_fail = True
