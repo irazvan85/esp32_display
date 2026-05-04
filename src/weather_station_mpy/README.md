@@ -21,6 +21,7 @@ Initial implementation for migrating the existing Arduino weather station to Mic
   - page 2: 5-day rows
   - page 3: solar summary
   - page 4: PC metrics (CPU/RAM/disk/temp/uptime)
+  - page 5: ESP32 system status (RAM, CPU MHz, flash, FS, WiFi RSSI/channel)
 - Runtime web configuration interface over WiFi IP for theme, visible pages, and metrics URL.
 
 ## Current migration status
@@ -36,6 +37,8 @@ This is phase 1/2 implementation. It establishes architecture and hardware/runti
 - `config/`: defaults, validation, and example config
 - `services/`: Wi-Fi, time, weather API, SolarMan API, PC metrics API client
 - `services/web_config_service.py`: lightweight HTTP config UI service
+- `services/weather_cache_service.py`: local weather cache for offline fallback
+- `services/uart_capture_service.py`: test-only pixel capture UART command handler
 - `ui/display_manager.py`: display init + page rendering
 - `ui/theme.py`: runtime theme palette application
 

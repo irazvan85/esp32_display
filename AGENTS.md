@@ -66,8 +66,8 @@ cd src\weather_station_mpy
 | `app_state.py` | Shared mutable state (pages, API data, dirty flags) |
 | `compat.py` | Bridges MicroPython and CPython APIs for linting |
 | `config/store.py` | Config load, merge with defaults, placeholder validation |
-| `services/` | Stateless API clients: `WeatherService`, `SolarService`, `MetricsService`, `TimeService`, `WiFiService` |
-| `ui/display_manager.py` | Display init + 5-page renderer; zones defined by Y-coordinate constants |
+| `services/` | Stateless API clients: `WeatherService`, `SolarService`, `MetricsService`, `TimeService`, `WiFiService`, `WeatherCacheService`, `WebConfigService`, `UartCaptureService` |
+| `ui/display_manager.py` | Display init + 6-page renderer; zones defined by Y-coordinate constants |
 
 **Async task intervals:**
 
@@ -79,7 +79,9 @@ cd src\weather_station_mpy
 | `weather_task` | 10 min | current + forecast (if WiFi) |
 | `solar_task` | 5 min | realtime (if enabled + WiFi) |
 | `metrics_task` | 10 s | PC metrics (if enabled + WiFi) |
-| `heap_task` | 10 s | logs free memory |
+| `esp_status_task` | 10 s | ESP32 system resource stats (RAM, CPU MHz, flash, FS, WiFi RSSI) |
+| `web_config_task` | event-driven | serves HTTP config UI when `web.enabled=true` |
+| `memory_log_task` | 60 s | logs free heap to serial |
 
 **MicroPython pitfalls:**
 - `st7789.py` must be explicitly deployed — it is **not** built into the firmware.
@@ -119,7 +121,7 @@ python solarmann/pc_metrics_api.py --host 0.0.0.0 --port 8765 --disk-path C:\
   - Screen clear/fill
   - One visible text or primitive render
 - Do not hardcode credentials or API secrets in committed source files.
-- To add a new display page: follow the 5-page pattern in `ui/display_manager.py`, add a `PAGE_*` constant to `board.py`, and update the button task page count.
+- To add a new display page: follow the 6-page pattern in `ui/display_manager.py`, add a `PAGE_*` constant to `board.py`, and update the button task page count.
 
 ## Hardware Profile
 Use this profile unless the user explicitly asks for different pins or a different display stack.
