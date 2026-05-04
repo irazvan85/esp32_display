@@ -279,10 +279,18 @@ class TestAssocFailSourceShape(unittest.TestCase):
         self.assertGreater(app_main_start, 0, "app_main definition not found")
 
         pre_app_main = source[:app_main_start]
+        # _get_display_manager_class() helper must exist before app_main
         self.assertIn(
-            "from ui.display_manager import DisplayManager",
+            "def _get_display_manager_class():",
             pre_app_main,
-            "DisplayManager import should be module-level for clean-heap load",
+            "DisplayManager loader helper must exist before app_main",
+        )
+        # DisplayManager is loaded inside app_main before WiFi
+        app_main_section = source[app_main_start:]
+        self.assertIn(
+            "DisplayManager = _get_display_manager_class()",
+            app_main_section,
+            "DisplayManager must be loaded inside app_main before WiFi",
         )
 
 
@@ -388,7 +396,7 @@ class TestBootstrapMemoryRequirements(unittest.TestCase):
         requirement for the correct boot sequence.
         """
         source = self._load_main_source()
-        display_init = source.rfind("from ui.display_manager import DisplayManager")
+        display_init = source.rfind("display.init()")
         self.assertGreater(display_init, 0)
 
         # The 800 chars before the DisplayManager import in app_main should NOT

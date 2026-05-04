@@ -57,10 +57,32 @@ Push-Location $scriptDir
 try {
     Write-Host "[DEPLOY] Syncing weather_station_mpy to $Port"
 
-    # Top-level files loaded by main.py imports.
+    # Compile main.py to _main.mpy (pre-compiled bytecode avoids heap fragmentation at boot).
+    $mpyCross = Join-Path (Split-Path $scriptDir -Parent) "..\\.venv\\Scripts\\mpy-cross"
+    if (-not (Test-Path $mpyCross)) {
+        $mpyCross = "mpy-cross"
+    }
+    Write-Host "[DEPLOY] Compiling main.py -> _main.mpy"
+    & $mpyCross -march=xtensa main.py -o _main.mpy
+    if ($LASTEXITCODE -ne 0) {
+        throw "mpy-cross compilation failed"
+    }
+
+    # Deploy boot.py.
+    Write-Host "[DEPLOY] copy boot.py"
+    Invoke-Mpremote connect $Port soft-reset fs cp "boot.py" ":/boot.py"
+
+    # Deploy pre-compiled app bytecode.
+    Write-Host "[DEPLOY] copy _main.mpy"
+    Invoke-Mpremote connect $Port soft-reset fs cp "_main.mpy" ":/_main.mpy"
+
+    # Write the boot stub as main.py directly on device (avoids BOM issues with Out-File).
+    Write-Host "[DEPLOY] write main.py stub"
+    $stubContent = "# Boot stub: pre-load display_manager before _main.mpy fragments heap`nimport gc`ngc.collect()`nfrom ui.display_manager import DisplayManager`ngc.collect()`nimport _main`nimport asyncio`ntry:`n    asyncio.run(_main.app_main())`nfinally:`n    asyncio.new_event_loop()`n"
+    Invoke-Mpremote connect $Port exec "f=open('/main.py','w'); f.write('$stubContent'); f.close()"
+
+    # Other top-level source files.
     $topFiles = @(
-        "boot.py",
-        "main.py",
         "board.py",
         "app_state.py",
         "compat.py",

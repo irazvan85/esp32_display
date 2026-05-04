@@ -37,6 +37,7 @@ class WifiService:
         self.last_status = _STAT_IDLE
         self._wlan_reconnects = _DEFAULT_RECONNECTS
         self._wlan_pm = None
+        self._connect_attempts = 0
         self._load_wlan_tuning()
         if network is None:
             self._wlan = None
@@ -269,6 +270,18 @@ class WifiService:
         if self._wlan is None:
             return
 
+        if bool(getattr(self, "_preallocated", False)):
+            # On boot-preallocated STA interfaces this board is most stable with
+            # the legacy flow: tune + disconnect + short settle, without an
+            # active(False/True) cycle before each connect.
+            self._apply_wlan_tuning()
+            try:
+                self._wlan.disconnect()
+            except Exception:
+                pass
+            await asyncio.sleep_ms(300)
+            return
+
         try:
             self._wlan.active(False)
         except Exception:
@@ -323,8 +336,25 @@ class WifiService:
         cfg_bssid = self._parse_bssid(self._cfg["wifi"].get("bssid", ""))
         timeout_ms = int(self._cfg["wifi"].get("connect_timeout_ms", 20_000))
 
+        self._connect_attempts = int(getattr(self, "_connect_attempts", 0)) + 1
+
+        wifi_cfg = self._cfg.get("wifi", {}) if isinstance(self._cfg, dict) else {}
+        legacy_no_reset = bool(wifi_cfg.get("legacy_first_connect_no_reset", True))
+        use_legacy_first_connect = (
+            bool(getattr(self, "_preallocated", False))
+            and legacy_no_reset
+            and (not force)
+            and cfg_bssid is None
+            and self._connect_attempts == 1
+        )
+
         print("[WiFi] Connecting to %s" % ssid)
-        await self._prepare_sta_for_connect()
+        if use_legacy_first_connect:
+            # Match wifitest behavior for the first boot attempt when STA is
+            # already active from boot preallocation: connect directly.
+            self._apply_wlan_tuning()
+        else:
+            await self._prepare_sta_for_connect()
         try:
             if cfg_bssid is not None:
                 try:
@@ -372,6 +402,11 @@ class WifiService:
             # ESP_ERR_INVALID_STATE (0x0102) unless we cycle active(False/True) first.
             # A minimal radio cycle is sufficient to clear the state.
             try:
+                self._wlan.disconnect()
+            except Exception:
+                pass
+            await asyncio.sleep_ms(250)
+            try:
                 self._wlan.active(False)
             except Exception:
                 pass
@@ -380,6 +415,7 @@ class WifiService:
                 self._wlan.active(True)
             except Exception:
                 pass
+            await asyncio.sleep_ms(250)
             scanned_bssid = self._scan_best_bssid(ssid, allow_low_heap=True)
             if scanned_bssid is not None:
                 print("[WiFi] BSSID scan found AP, retrying with pinned BSSID")

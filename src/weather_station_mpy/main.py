@@ -42,7 +42,11 @@ from compat import mem_free, mem_alloc, ticks_diff, ticks_ms
 from config.store import ConfigNotReadyError, load_config
 from services.time_service import TimeService
 from services.wifi_service import WifiService
-from ui.display_manager import DisplayManager
+
+
+def _get_display_manager_class():
+    from ui.display_manager import DisplayManager
+    return DisplayManager
 
 
 def _normalize_enabled_pages(value):
@@ -328,9 +332,38 @@ async def wifi_task(
 
     while True:
         if _assoc_fail_pending and not state.wifi_online:
+            print("[WiFi] persisted ASSOC_FAIL: startup probe attempt")
+            # Step 1: wifitest-style direct probe (no scan pinning).
+            probe_online = await wifi_svc.ensure_connected(allow_scan_retry=False)
+            if (not probe_online) and wifi_svc.assoc_fail:
+                # Step 2: force a full STA reset path before entering long backoff.
+                print("[WiFi] persisted ASSOC_FAIL: recovery probe with STA reset")
+                probe_online = await wifi_svc.ensure_connected(force=True, allow_scan_retry=True)
+            if probe_online:
+                _assoc_fail_pending = False
+                _assoc_fail_count = 0
+                _assoc_fail_state_clear(cfg)
+                changed = probe_online != state.wifi_online
+                state.wifi_online = probe_online
+                state.net_error_streak = 0
+                if changed:
+                    state.status_dirty = True
+                    state.page_dirty = True
+                if not state.time_synced:
+                    state.time_synced = await time_svc.sync_ntp()
+                    if state.time_synced:
+                        _ntp_retry_wait_ms = 0
+                    else:
+                        _ntp_retry_wait_ms = ntp_retry_ms
+                continue
+
             _assoc_fail_pending = False
-            _assoc_fail_state_save_count(cfg, _assoc_fail_count)
-            await _handle_assoc_fail_backoff(state, wifi_svc, cfg, _assoc_fail_count)
+            if wifi_svc.assoc_fail:
+                _assoc_fail_state_save_count(cfg, _assoc_fail_count)
+                await _handle_assoc_fail_backoff(state, wifi_svc, cfg, _assoc_fail_count)
+            else:
+                print("[WiFi] persisted ASSOC_FAIL probe timed out; resuming normal retry policy")
+                await asyncio.sleep_ms(wifi_offline_retry_ms)
             continue
 
         force_requested = state.force_wifi_reconnect
@@ -1001,32 +1034,21 @@ async def app_main():
         cfg = load_config("config.json")
     except ConfigNotReadyError as exc:
         print("[CFG] %s" % exc)
+        # Config error path: load DisplayManager here (WiFi not needed)
+        gc.collect()
+        DisplayManager = _get_display_manager_class()
         display = DisplayManager()
         display.init()
         display.draw_config_error(str(exc))
         while True:
             await asyncio.sleep(5)
 
-    _wifi_prealloc_ok = False
-    try:
-        import network as _net_pre
-
-        _wlan_pre = _net_pre.WLAN(_net_pre.STA_IF)
-        _wifi_prealloc_ok = bool(_wlan_pre.active())
-        print(
-            "[WiFi] prealloc status: %s"
-            % ("active" if _wifi_prealloc_ok else "inactive")
-        )
-        del _wlan_pre, _net_pre
-    except Exception:
-        print("[WiFi] prealloc status: inactive")
-
     # Maximise contiguous free heap before the WiFi driver allocates its
     # ~16 KB RX-buffer pool.  The AppState + config dicts fragment the heap
     # enough to trigger "WiFi Out of Memory" if this is omitted.
     gc.collect()
 
-    wifi_svc = WifiService(cfg, preallocated=_wifi_prealloc_ok)
+    wifi_svc = WifiService(cfg, preallocated=False)
     time_svc = TimeService(cfg)
 
     # Initial connectivity attempts.
@@ -1038,11 +1060,25 @@ async def app_main():
     online = False
     startup_assoc_fail_count = _assoc_fail_state_load_count(cfg)
     startup_assoc_fail_pending = startup_assoc_fail_count > 0
+    startup_assoc_recovered = False
     if startup_assoc_fail_pending:
         print(
-            "[WiFi] persisted ASSOC_FAIL #%d - deferring startup connect to wifi_task policy"
+            "[WiFi] persisted ASSOC_FAIL #%d - probing once before wifi_task backoff"
             % startup_assoc_fail_count
         )
+        print("[WiFi] persisted ASSOC_FAIL: early boot probe attempt")
+        online = await wifi_svc.ensure_connected(allow_scan_retry=False)
+        if online:
+            startup_assoc_fail_count = 0
+            startup_assoc_fail_pending = False
+            startup_assoc_recovered = True
+            _assoc_fail_state_clear(cfg)
+            print("[WiFi] early boot probe connected; cleared persisted ASSOC_FAIL state")
+        elif wifi_svc.assoc_fail:
+            print("[WiFi] early boot probe still ASSOC_FAIL; deferring to wifi_task policy")
+        else:
+            startup_assoc_fail_pending = False
+            print("[WiFi] early boot probe timed out; resuming normal retry policy")
     else:
         for attempt in range(startup_retries):
             print("[WiFi] startup connect attempt %d/%d" % (attempt + 1, startup_retries))
@@ -1090,8 +1126,17 @@ async def app_main():
     # in display.init() from finding a contiguous free block.
     gc.collect()
 
+    # Load DisplayManager after WiFi is up. WiFi connect() and active() both
+    # require internal IDF heap; loading display_manager.mpy before WiFi
+    # connects fragments that region and causes "WiFi Out of Memory".
+    # With .mpy pre-compiled bytecode, this import avoids a compile-time heap
+    # spike and fits comfortably in the ~100 KB remaining after WiFi.
+    DisplayManager = _get_display_manager_class()
+    gc.collect()
+
     synced = await time_svc.sync_ntp() if online else False
 
+    gc.collect()
     # --- Startup weather bootstrap (BEFORE display init) ---
     # OWM bootstrap must happen before DisplayManager.init() because
     # DisplayManager's SPI DMA buffers and lwIP's MEMP_NETDB DNS allocator
@@ -1107,6 +1152,9 @@ async def app_main():
 
     weather_enabled = bool(cfg["weather"].get("enabled", True))
     startup_bootstrap_enabled = bool(cfg["weather"].get("startup_bootstrap", False))
+    if startup_assoc_recovered and startup_bootstrap_enabled:
+        print("[OWM] startup bootstrap skipped after ASSOC_FAIL recovery")
+        startup_bootstrap_enabled = False
 
     if online and (not weather_enabled or not startup_bootstrap_enabled):
         if not _dns_prewarm(cfg):
@@ -1149,12 +1197,6 @@ async def app_main():
     # Init display AFTER OWM bootstrap. gc.collect() above freed the OWM
     # transient socket+JSON allocations (~7 KB). Display init then has access
     # to those freed blocks for its SPI DMA buffer allocation.
-    # DisplayManager module is imported at file load time while heap is clean.
-    # Its heavy dependencies (st7789 + fonts) are lazy-loaded inside init/text
-    # helpers, which avoids low-heap import crashes in app_main.
-    # MemoryError fallback: if OWM fragmented the heap badly, retry after an
-    # extra gc.collect() — the allocator can coalesce adjacent freed blocks
-    # on the second pass.
     display = DisplayManager()
     gc.collect()
     try:

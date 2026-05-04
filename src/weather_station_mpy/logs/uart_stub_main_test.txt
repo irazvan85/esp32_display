@@ -1,0 +1,6 @@
+
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+MicroPython v1.28.0 on 2026-04-06; Generic ESP32 module with ESP32
+Type "help()" for more information.
+>>>

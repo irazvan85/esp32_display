@@ -28,6 +28,7 @@ DEFAULT_CONFIG = {
         "assoc_fail_long_cooldown_s": 720,
         "assoc_fail_state_enabled": True,
         "assoc_fail_state_path": "wifi_assoc_fail_state.json",
+        "legacy_first_connect_no_reset": True,
     },
     "weather": {
         "enabled": True,

@@ -1,24 +1,486 @@
-[WiFi] persisted ASSOC_FAIL #17 - deferring startup connect to wifi_task policy
-[DISP] ST7789 initialized (improved UI)
-[OWM] startup weather unavailable; trying cache
-[OWM] startup weather fallback: offline placeholder
-[CAP] pixel capture ready (test mode)
-[CAP] arm failed: low heap (62896 < 163104)
-[WiFi] ASSOC_FAIL #17 - radio off, quiet window 720s (next retry in 720s)
-[WiFi] radio OFF during backoff
-[WEB] Disabled in config
-[MEM] Free heap: 49776 bytes
-[ESP] RAM 48kB free  CPU 160MHz
-[Solar] Disabled in config
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[MEM] Free heap: 49456 bytes
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
-[ESP] RAM 48kB free  CPU 160MHz
+[BOOT] weather_station_mpy boot.py
+[BOOT] display_manager cached
+[BOOT] WiFi DMA pool reserved
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 3/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 4/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+E (12129) spi_master: spi_master_init_driver(282): host_id not initialized
+E (12289) spi_master: check_trans_valid(1083): invalid dev handle
+E (12439) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12589) spi_master: check_trans_valid(1083): invalid dev handle
+E (12599) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+
+A fatal error occurred. The crash dump printed below may be used to help
+determine what caused it. If you are not already running the most recent
+version of MicroPython, consider upgrading. New versions often fix bugs.
+
+To learn more about how to debug and/or report this crash visit the wiki
+page at: https://github.com/micropython/micropython/wiki/ESP32-debugging
+
+MPY version : v1.28.0 on 2026-04-06
+IDF version : v5.5.1
+Machine     : Generic ESP32 module with ESP32
+
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x4017159b  PS      : 0x00060330  A0      : 0x8012149d  A1      : 0x3ffce8d0
+A2      : 0x00000000  A3      : 0xffffffff  A4      : 0x00000001  A5      : 0x3ffce988
+A6      : 0x3ffd24e0  A7      : 0x3f41f340  A8      : 0x00000042  A9      : 0x3ffce870
+A10     : 0x3ffd8830  A11     : 0x3ffbc940  A12     : 0x00000000  A13     : 0x3ffce988
+A14     : 0x00000001  A15     : 0x3ffbc93c  SAR     : 0x00000011  EXCCAUSE: 0x0000001c
+EXCVADDR: 0x00000074  LBEG    : 0x40121c1a  LEND    : 0x40121c23  LCOUNT  : 0x00000000
+
+
+Backtrace: 0x40171598:0x3ffce8d0 0x4012149a:0x3ffce8f0 0x4013427d:0x3ffce980 0x400feaba:0x3ffce9b0 0x40106591:0x3ffce9d0 0x4010665b:0x3ffce9f0 0x40085816:0x3ffcea10 0x400febc3:0x3ffceab0 0x40106591:0x3ffceae0 0x4010665b:0x3ffceb00 0x40085816:0x3ffceb20 0x400febc3:0x3ffcebc0 0x40106591:0x3ffcec30 0x4010665b:0x3ffcec50 0x40085816:0x3ffcec70 0x400febc3:0x3ffced10 0x40106591:0x3ffced40 0x4010665b:0x3ffced60 0x40085816:0x3ffced80 0x400fef0b:0x3ffcee20 0x400fefe9:0x3ffcee40 0x400feaba:0x3ffcee70 0x40106591:0x3ffcee90 0x4010665b:0x3ffceeb0 0x40085816:0x3ffceed0 0x400febc3:0x3ffcef70 0x40106591:0x3ffcefa0 0x40085775:0x3ffcefc0 0x400febc3:0x3ffcf060 0x40106591:0x3ffcf0c0 0x4010665b:0x3ffcf0e0 0x40085816:0x3ffcf100 0x400febc3:0x3ffcf1a0 0x40106591:0x3ffcf210 0x401065a6:0x3ffcf230 0x40116e7a:0x3ffcf250 0x401171b7:0x3ffcf2e0 0x400f6c2e:0x3ffcf310
+
+
+
+
+ELF file SHA256: cc85d995e
+
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] display_manager cached
+[BOOT] WiFi DMA pool reserved
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 3/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 4/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+E (12129) spi_master: spi_master_init_driver(282): host_id not initialized
+E (12289) spi_master: check_trans_valid(1083): invalid dev handle
+E (12439) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12589) spi_master: check_trans_valid(1083): invalid dev handle
+E (12599) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+
+A fatal error occurred. The crash dump printed below may be used to help
+determine what caused it. If you are not already running the most recent
+version of MicroPython, consider upgrading. New versions often fix bugs.
+
+To learn more about how to debug and/or report this crash visit the wiki
+page at: https://github.com/micropython/micropython/wiki/ESP32-debugging
+
+MPY version : v1.28.0 on 2026-04-06
+IDF version : v5.5.1
+Machine     : Generic ESP32 module with ESP32
+
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x4017159b  PS      : 0x00060330  A0      : 0x8012149d  A1      : 0x3ffce8d0
+A2      : 0x00000000  A3      : 0xffffffff  A4      : 0x00000001  A5      : 0x3ffce988
+A6      : 0x3ffd24e0  A7      : 0x3f41f340  A8      : 0x00000042  A9      : 0x3ffce870
+A10     : 0x3ffd8830  A11     : 0x3ffbc940  A12     : 0x00000000  A13     : 0x3ffce988
+A14     : 0x00000001  A15     : 0x3ffbc93c  SAR     : 0x00000011  EXCCAUSE: 0x0000001c
+EXCVADDR: 0x00000074  LBEG    : 0x40121c1a  LEND    : 0x40121c23  LCOUNT  : 0x00000000
+
+
+Backtrace: 0x40171598:0x3ffce8d0 0x4012149a:0x3ffce8f0 0x4013427d:0x3ffce980 0x400feaba:0x3ffce9b0 0x40106591:0x3ffce9d0 0x4010665b:0x3ffce9f0 0x40085816:0x3ffcea10 0x400febc3:0x3ffceab0 0x40106591:0x3ffceae0 0x4010665b:0x3ffceb00 0x40085816:0x3ffceb20 0x400febc3:0x3ffcebc0 0x40106591:0x3ffcec30 0x4010665b:0x3ffcec50 0x40085816:0x3ffcec70 0x400febc3:0x3ffced10 0x40106591:0x3ffced40 0x4010665b:0x3ffced60 0x40085816:0x3ffced80 0x400fef0b:0x3ffcee20 0x400fefe9:0x3ffcee40 0x400feaba:0x3ffcee70 0x40106591:0x3ffcee90 0x4010665b:0x3ffceeb0 0x40085816:0x3ffceed0 0x400febc3:0x3ffcef70 0x40106591:0x3ffcefa0 0x40085775:0x3ffcefc0 0x400febc3:0x3ffcf060 0x40106591:0x3ffcf0c0 0x4010665b:0x3ffcf0e0 0x40085816:0x3ffcf100 0x400febc3:0x3ffcf1a0 0x40106591:0x3ffcf210 0x401065a6:0x3ffcf230 0x40116e7a:0x3ffcf250 0x401171b7:0x3ffcf2e0 0x400f6c2e:0x3ffcf310
+
+
+
+
+ELF file SHA256: cc85d995e
+
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] display_manager cached
+[BOOT] WiFi DMA pool reserved
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 3/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 4/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+E (12129) spi_master: spi_master_init_driver(282): host_id not initialized
+E (12289) spi_master: check_trans_valid(1083): invalid dev handle
+E (12439) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12589) spi_master: check_trans_valid(1083): invalid dev handle
+E (12599) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+
+A fatal error occurred. The crash dump printed below may be used to help
+determine what caused it. If you are not already running the most recent
+version of MicroPython, consider upgrading. New versions often fix bugs.
+
+To learn more about how to debug and/or report this crash visit the wiki
+page at: https://github.com/micropython/micropython/wiki/ESP32-debugging
+
+MPY version : v1.28.0 on 2026-04-06
+IDF version : v5.5.1
+Machine     : Generic ESP32 module with ESP32
+
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x4017159b  PS      : 0x00060f30  A0      : 0x8012149d  A1      : 0x3ffce8d0
+A2      : 0x00000000  A3      : 0xffffffff  A4      : 0x00000001  A5      : 0x3ffce988
+A6      : 0x3ffd24e0  A7      : 0x3f41f340  A8      : 0x00000042  A9      : 0x3ffce870
+A10     : 0x3ffd8830  A11     : 0x3ffbc940  A12     : 0x00000000  A13     : 0x3ffce988
+A14     : 0x00000001  A15     : 0x3ffbc93c  SAR     : 0x00000011  EXCCAUSE: 0x0000001c
+EXCVADDR: 0x00000074  LBEG    : 0x40121c1a  LEND    : 0x40121c23  LCOUNT  : 0x00000000
+
+
+Backtrace: 0x40171598:0x3ffce8d0 0x4012149a:0x3ffce8f0 0x4013427d:0x3ffce980 0x400feaba:0x3ffce9b0 0x40106591:0x3ffce9d0 0x4010665b:0x3ffce9f0 0x40085816:0x3ffcea10 0x400febc3:0x3ffceab0 0x40106591:0x3ffceae0 0x4010665b:0x3ffceb00 0x40085816:0x3ffceb20 0x400febc3:0x3ffcebc0 0x40106591:0x3ffcec30 0x4010665b:0x3ffcec50 0x40085816:0x3ffcec70 0x400febc3:0x3ffced10 0x40106591:0x3ffced40 0x4010665b:0x3ffced60 0x40085816:0x3ffced80 0x400fef0b:0x3ffcee20 0x400fefe9:0x3ffcee40 0x400feaba:0x3ffcee70 0x40106591:0x3ffcee90 0x4010665b:0x3ffceeb0 0x40085816:0x3ffceed0 0x400febc3:0x3ffcef70 0x40106591:0x3ffcefa0 0x40085775:0x3ffcefc0 0x400febc3:0x3ffcf060 0x40106591:0x3ffcf0c0 0x4010665b:0x3ffcf0e0 0x40085816:0x3ffcf100 0x400febc3:0x3ffcf1a0 0x40106591:0x3ffcf210 0x401065a6:0x3ffcf230 0x40116e7a:0x3ffcf250 0x401171b7:0x3ffcf2e0 0x400f6c2e:0x3ffcf310
+
+
+
+
+ELF file SHA256: cc85d995e
+
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] display_manager cached
+[BOOT] WiFi DMA pool reserved
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 3/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 4/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+E (12129) spi_master: spi_master_init_driver(282): host_id not initialized
+E (12289) spi_master: check_trans_valid(1083): invalid dev handle
+E (12439) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12589) spi_master: check_trans_valid(1083): invalid dev handle
+E (12599) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+
+A fatal error occurred. The crash dump printed below may be used to help
+determine what caused it. If you are not already running the most recent
+version of MicroPython, consider upgrading. New versions often fix bugs.
+
+To learn more about how to debug and/or report this crash visit the wiki
+page at: https://github.com/micropython/micropython/wiki/ESP32-debugging
+
+MPY version : v1.28.0 on 2026-04-06
+IDF version : v5.5.1
+Machine     : Generic ESP32 module with ESP32
+
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x4017159b  PS      : 0x00060330  A0      : 0x8012149d  A1      : 0x3ffce8d0
+A2      : 0x00000000  A3      : 0xffffffff  A4      : 0x00000001  A5      : 0x3ffce988
+A6      : 0x3ffd24e0  A7      : 0x3f41f340  A8      : 0x00000042  A9      : 0x3ffce870
+A10     : 0x3ffd8830  A11     : 0x3ffbc940  A12     : 0x00000000  A13     : 0x3ffce988
+A14     : 0x00000001  A15     : 0x3ffbc93c  SAR     : 0x00000011  EXCCAUSE: 0x0000001c
+EXCVADDR: 0x00000074  LBEG    : 0x40121c1a  LEND    : 0x40121c23  LCOUNT  : 0x00000000
+
+
+Backtrace: 0x40171598:0x3ffce8d0 0x4012149a:0x3ffce8f0 0x4013427d:0x3ffce980 0x400feaba:0x3ffce9b0 0x40106591:0x3ffce9d0 0x4010665b:0x3ffce9f0 0x40085816:0x3ffcea10 0x400febc3:0x3ffceab0 0x40106591:0x3ffceae0 0x4010665b:0x3ffceb00 0x40085816:0x3ffceb20 0x400febc3:0x3ffcebc0 0x40106591:0x3ffcec30 0x4010665b:0x3ffcec50 0x40085816:0x3ffcec70 0x400febc3:0x3ffced10 0x40106591:0x3ffced40 0x4010665b:0x3ffced60 0x40085816:0x3ffced80 0x400fef0b:0x3ffcee20 0x400fefe9:0x3ffcee40 0x400feaba:0x3ffcee70 0x40106591:0x3ffcee90 0x4010665b:0x3ffceeb0 0x40085816:0x3ffceed0 0x400febc3:0x3ffcef70 0x40106591:0x3ffcefa0 0x40085775:0x3ffcefc0 0x400febc3:0x3ffcf060 0x40106591:0x3ffcf0c0 0x4010665b:0x3ffcf0e0 0x40085816:0x3ffcf100 0x400febc3:0x3ffcf1a0 0x40106591:0x3ffcf210 0x401065a6:0x3ffcf230 0x40116e7a:0x3ffcf250 0x401171b7:0x3ffcf2e0 0x400f6c2e:0x3ffcf310
+
+
+
+
+ELF file SHA256: cc85d995e
+
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] display_manager cached
+[BOOT] WiFi DMA pool reserved
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 3/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 4/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+E (12129) spi_master: spi_master_init_driver(282): host_id not initialized
+E (12289) spi_master: check_trans_valid(1083): invalid dev handle
+E (12439) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12589) spi_master: check_trans_valid(1083): invalid dev handle
+E (12599) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+E (12729) spi_master: check_trans_valid(1083): invalid dev handle
+
+A fatal error occurred. The crash dump printed below may be used to help
+determine what caused it. If you are not already running the most recent
+version of MicroPython, consider upgrading. New versions often fix bugs.
+
+To learn more about how to debug and/or report this crash visit the wiki
+page at: https://github.com/micropython/micropython/wiki/ESP32-debugging
+
+MPY version : v1.28.0 on 2026-04-06
+IDF version : v5.5.1
+Machine     : Generic ESP32 module with ESP32
+
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x4017159b  PS      : 0x00060730  A0      : 0x8012149d  A1      : 0x3ffce8d0
+A2      : 0x00000000  A3      : 0xffffffff  A4      : 0x00000001  A5      : 0x3ffce988
+A6      : 0x3ffd24e0  A7      : 0x3f41f340  A8      : 0x00000042  A9      : 0x3ffce870
+A10     : 0x3ffd8830  A11     : 0x3ffbc940  A12     : 0x00000000  A13     : 0x3ffce988
+A14     : 0x00000001  A15     : 0x3ffbc93c  SAR     : 0x00000011  EXCCAUSE: 0x0000001c
+EXCVADDR: 0x00000074  LBEG    : 0x40121c1a  LEND    : 0x40121c23  LCOUNT  : 0x00000000
+
+
+Backtrace: 0x40171598:0x3ffce8d0 0x4012149a:0x3ffce8f0 0x4013427d:0x3ffce980 0x400feaba:0x3ffce9b0 0x40106591:0x3ffce9d0 0x4010665b:0x3ffce9f0 0x40085816:0x3ffcea10 0x400febc3:0x3ffceab0 0x40106591:0x3ffceae0 0x4010665b:0x3ffceb00 0x40085816:0x3ffceb20 0x400febc3:0x3ffcebc0 0x40106591:0x3ffcec30 0x4010665b:0x3ffcec50 0x40085816:0x3ffcec70 0x400febc3:0x3ffced10 0x40106591:0x3ffced40 0x4010665b:0x3ffced60 0x40085816:0x3ffced80 0x400fef0b:0x3ffcee20 0x400fefe9:0x3ffcee40 0x400feaba:0x3ffcee70 0x40106591:0x3ffcee90 0x4010665b:0x3ffceeb0 0x40085816:0x3ffceed0 0x400febc3:0x3ffcef70 0x40106591:0x3ffcefa0 0x40085775:0x3ffcefc0 0x400febc3:0x3ffcf060 0x40106591:0x3ffcf0c0 0x4010665b:0x3ffcf0e0 0x40085816:0x3ffcf100 0x400febc3:0x3ffcf1a0 0x40106591:0x3ffcf210 0x401065a6:0x3ffcf230 0x40116e7a:0x3ffcf250 0x401171b7:0x3ffcf2e0 0x400f6c2e:0x3ffcf310
+
+
+
+
+ELF file SHA256: cc85d995e
+
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] display_manager cached
+[BOOT] WiFi DMA pool reserved
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 3/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 4/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+E (12119) spi_master: spi_master_init_driver(282): host_id not initialized
+E (12279) spi_master: check_trans_valid(1083): invalid dev handle
+E (12429) spi_master: check_trans_valid(1083): invalid dev handle
+E (12549) spi_master: check_trans_valid(1083): invalid dev handle
+E (12549) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12579) spi_master: check_trans_valid(1083): invalid dev handle
+E (12589) spi_master: check_trans_valid(1083): invalid dev handle
+E (12709) spi_master: check_trans_valid(1083): invalid dev handle
+E (12709) spi_master: check_trans_valid(1083): invalid dev handle
+E (12709) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+E (12719) spi_master: check_trans_valid(1083): invalid dev handle
+
+A fatal error occurred. The crash dump printed below may be used to help
+determine what caused it. If you are not already running the most recent
+version of MicroPython, consider upgrading. New versions often fix bugs.
+
+To learn more about how to debug and/or report this crash visit the wiki
+page at: https://github.com/micropython/micropython/wiki/ESP32-debugging
+
+MPY version : v1.28.0 on 2026-04-06
+IDF version : v5.5.1
+Machine     : Generic ESP32 module with ESP32
+
+Guru Meditation Error: Core  1 panic'ed (LoadProhibited). Exception was unhandled.
+
+Core  1 register dump:
+PC      : 0x4017159b  PS      : 0x00060730  A0      : 0x8012149d  A1      : 0x3ffce8d0
+A2      : 0x00000000  A3      : 0xffffffff  A4      : 0x00000001  A5      : 0x3ffce988
+A6      : 0x3ffd24e0  A7      : 0x3f41f340  A8      : 0x00000042  A9      : 0x3ffce870
+A10     : 0x3ffd8830  A11     : 0x3ffbc940  A12     : 0x00000000  A13     : 0x3ffce988
+A14     : 0x00000001  A15     : 0x3ffbc93c  SAR     : 0x00000011  EXCCAUSE: 0x0000001c
+EXCVADDR: 0x00000074  LBEG    : 0x40121c1a  LEND    : 0x40121c23  LCOUNT  : 0x00000000
+
+
+Backtrace: 0x40171598:0x3ffce8d0 0x4012149a:0x3ffce8f0 0x4013427d:0x3ffce980 0x400feaba:0x3ffce9b0 0x40106591:0x3ffce9d0 0x4010665b:0x3ffce9f0 0x40085816:0x3ffcea10 0x400febc3:0x3ffceab0 0x40106591:0x3ffceae0 0x4010665b:0x3ffceb00 0x40085816:0x3ffceb20 0x400febc3:0x3ffcebc0 0x40106591:0x3ffcec30 0x4010665b:0x3ffcec50 0x40085816:0x3ffcec70 0x400febc3:0x3ffced10 0x40106591:0x3ffced40 0x4010665b:0x3ffced60 0x40085816:0x3ffced80 0x400fef0b:0x3ffcee20 0x400fefe9:0x3ffcee40 0x400feaba:0x3ffcee70 0x40106591:0x3ffcee90 0x4010665b:0x3ffceeb0 0x40085816:0x3ffceed0 0x400febc3:0x3ffcef70 0x40106591:0x3ffcefa0 0x40085775:0x3ffcefc0 0x400febc3:0x3ffcf060 0x40106591:0x3ffcf0c0 0x4010665b:0x3ffcf0e0 0x40085816:0x3ffcf100 0x400febc3:0x3ffcf1a0 0x40106591:0x3ffcf210 0x401065a6:0x3ffcf230 0x40116e7a:0x3ffcf250 0x401171b7:0x3ffcf2e0 0x400f6c2e:0x3ffcf310
+
+
+
+
+ELF file SHA256: cc85d995e
+
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+[BOOT] display_manager cached
+[BOOT] WiFi DMA pool reserved
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 2/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 3/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+[WiFi] startup connect attempt 4/4
+[WiFi] Connecting to IOT
+[WiFi] connect() error: WiFi Out of Memory
+E (12129) spi_master: spi_master_init_driver(282): host_id not initialized
+E (12289) spi_master: check_trans_valid(1083): invalid dev handle
+E (12439) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12559) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12569) spi_master: check_trans_valid(1083): invalid dev handle
+E (12589) spi_master: check_trans_valid(1083): invalid dev handle
+E (12599) spi_master: check_trans_valid(1083): invalid dev handle

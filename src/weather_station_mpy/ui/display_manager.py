@@ -31,23 +31,35 @@ except ImportError:
     Pin = None
     SPI = None
 
-try:
-    st7789 = __import__("st7789")
-except ImportError:
-    try:
-        st7789 = __import__("st7789py")
-    except ImportError:
-        st7789 = None
+# Lazy-loaded modules to keep main import-time heap usage low.
+st7789 = None
+font_small = None
+font_medium = None
 
-try:
-    font_small = __import__("vga1_8x8")
-except ImportError:
-    font_small = None
 
-try:
-    font_medium = __import__("vga1_8x16")
-except ImportError:
-    font_medium = None
+def _ensure_display_modules_loaded():
+    global st7789, font_small, font_medium
+
+    if st7789 is None:
+        try:
+            st7789 = __import__("st7789")
+        except ImportError:
+            try:
+                st7789 = __import__("st7789py")
+            except ImportError:
+                st7789 = None
+
+    if font_small is None:
+        try:
+            font_small = __import__("vga1_8x8")
+        except ImportError:
+            font_small = None
+
+    if font_medium is None:
+        try:
+            font_medium = __import__("vga1_8x16")
+        except ImportError:
+            font_medium = None
 
 
 _DAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
@@ -131,6 +143,8 @@ class DisplayManager:
 
         import gc as _gc
         _gc.collect()
+
+        _ensure_display_modules_loaded()
 
         if st7789 is None:
             print("[DISP] st7789 module not found; running in headless mode")
