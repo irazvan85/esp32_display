@@ -26,7 +26,9 @@ from pixel_capture import _pixel_capture_settings  # noqa: E402
 
 class TestIsTransportError(unittest.TestCase):
     def test_transport_error_minus202(self):
-        self.assertTrue(_is_transport_error(OSError(-202)))
+        # -202 (EAI_FAIL) is a DNS resolver error, not a WiFi transport failure.
+        # Reconnecting WiFi does not fix DNS heap-allocation failures.
+        self.assertFalse(_is_transport_error(OSError(-202)))
 
     def test_transport_error_118(self):
         self.assertTrue(_is_transport_error(OSError(118)))
@@ -35,7 +37,9 @@ class TestIsTransportError(unittest.TestCase):
         self.assertTrue(_is_transport_error(OSError(113)))
 
     def test_transport_error_minus203(self):
-        self.assertTrue(_is_transport_error(OSError(-203)))
+        # -203 (EAI_MEMORY) is a DNS/memory resolver error, not a WiFi transport failure.
+        # It is caused by heap fragmentation; reconnecting WiFi does not fix it.
+        self.assertFalse(_is_transport_error(OSError(-203)))
 
     def test_transport_error_105_not_transport(self):
         """ENOBUFS (105) is a local PCB exhaustion — not a WiFi path failure."""

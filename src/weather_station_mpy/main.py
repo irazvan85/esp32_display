@@ -92,7 +92,12 @@ def _is_transport_error(exc):
     code = None
     if len(exc.args) > 0:
         code = exc.args[0]
-    if code in (-203, -202, 118, 113):
+    # 118=EHOSTUNREACH, 113=ENETUNREACH — real WiFi-down errors.
+    # -203 (EAI_MEMORY) and -202 (EAI_FAIL) are lwIP DNS/memory errors caused
+    # by heap fragmentation; reconnecting WiFi does not fix them and incorrectly
+    # triggers ASSOC_FAIL cycles. DNS errors are handled by the per-task
+    # _dns_fail_streak mechanism in weather_task.
+    if code in (118, 113):
         return True
 
     text = str(exc).lower()

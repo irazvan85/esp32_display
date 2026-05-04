@@ -1,0 +1,50 @@
+
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[NTP] Time synced (UTC): 10:24:09
+[OWM] startup fetch attempt 1/3
+[OWM] startup fetch OK: 21.1C Clear
+[DISP] ST7789 initialized (improved UI)
+[CAP] pixel capture ready (test mode)
+[CAP] arm failed: low heap (54272 < 163104)
+[WEB] Disabled in config
+[MEM] Free heap: 42048 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[OWM] fetch error: [Errno 116] ETIMEDOUT
+[Solar] Disabled in config
+[PC] fetch error: [Errno 12] ENOMEM
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.43', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 20s after 1 consecutive failures
+[ESP] RAM 39kB free  CPU 160MHz
+[ESP] RAM 39kB free  CPU 160MHz
+[PC] fetch error: [Errno 12] ENOMEM
+[PC] backoff 40s after 2 consecutive failures
+[ESP] RAM 39kB free  CPU 160MHz
+[MEM] Free heap: 40864 bytes
+[OWM] fetch error: [Errno 116] ETIMEDOUT
+[ESP] RAM 39kB free  CPU 160MHz
+[ESP] RAM 39kB free  CPU 160MHz
+[ESP] RAM 39kB free  CPU 160MHz
+[OWM] fetch error: [Errno 116] ETIMEDOUT
+[PC] fetch error: [Errno 12] ENOMEM
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.43', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 80s after 3 consecutive failures
+[ESP] RAM 39kB free  CPU 160MHz
+[MEM] Free heap: 40768 bytes
+[ESP] RAM 39kB free  CPU 160MHz
+[ESP] RAM 39kB free  CPU 160MHz
+[OWM] fetch error: [Errno 116] ETIMEDOUT
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
