@@ -514,7 +514,7 @@ The repository includes two MicroPython-focused workflows:
 
 These workflows validate MicroPython firmware logic that can run on host CI, while device/HIL tests remain manual or bench-driven.
 
-### Device-side UART task wiring
+## Device-side UART task wiring
 
 **Device side**: `uart_capture_task` is added automatically to the async task list in `main.py` when `services/uart_capture_service.py` is deployed on the device (it is part of the standard deploy set via `deploy.ps1`).
 
