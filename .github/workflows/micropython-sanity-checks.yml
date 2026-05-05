@@ -42,8 +42,8 @@ jobs:
           import board  # noqa: F401
           import compat  # noqa: F401
           import main  # noqa: F401
-          from services.weather_service import WeatherService  # noqa: F401
-          from services.wifi_service import WifiService  # noqa: F401
-          from ui.display_manager import DisplayManager  # noqa: F401
+          import services.weather_service  # noqa: F401
+          import services.wifi_service  # noqa: F401
+          import ui.display_manager  # noqa: F401
           print("MicroPython import smoke-check passed")
           PY
