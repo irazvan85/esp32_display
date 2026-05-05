@@ -1,0 +1,49 @@
+name: MicroPython Sanity Checks
+
+on:
+  pull_request:
+    paths:
+      - "src/weather_station_mpy/**"
+      - ".github/workflows/micropython-*.yml"
+  push:
+    branches:
+      - main
+      - dev_micropython
+    paths:
+      - "src/weather_station_mpy/**"
+      - ".github/workflows/micropython-*.yml"
+
+jobs:
+  sanity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python syntax for MicroPython tree
+        run: python -m compileall -q src/weather_station_mpy
+
+      - name: Import smoke-check core modules
+        run: |
+          python - <<'PY'
+          import pathlib
+          import sys
+
+          root = pathlib.Path.cwd() / "src" / "weather_station_mpy"
+          sys.path.insert(0, str(root))
+
+          import app_state  # noqa: F401
+          import board  # noqa: F401
+          import compat  # noqa: F401
+          import main  # noqa: F401
+          from services.weather_service import WeatherService  # noqa: F401
+          from services.wifi_service import WifiService  # noqa: F401
+          from ui.display_manager import DisplayManager  # noqa: F401
+          print("MicroPython import smoke-check passed")
+          PY

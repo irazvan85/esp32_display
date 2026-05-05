@@ -497,6 +497,23 @@ CI-friendly host check (no device required, mocked serial path):
 python -m pytest src/weather_station_mpy/tests/test_capture_display_tool.py -v
 ```
 
+## GitHub Actions CI (MicroPython)
+
+The repository includes two MicroPython-focused workflows:
+
+- **MicroPython Host Tests** (`.github/workflows/micropython-host-tests.yml`)
+  - Runs host-side tests in `src/weather_station_mpy/tests`
+  - Excludes `tests/device` and `tests/hil` (hardware-only suites)
+  - Executes on `pull_request` and `push` to `main` / `dev_micropython`
+  - Uses a Python matrix (`3.10`, `3.12`)
+
+- **MicroPython Sanity Checks** (`.github/workflows/micropython-sanity-checks.yml`)
+  - Compiles `src/weather_station_mpy` with `python -m compileall`
+  - Runs a CPython import smoke-check for core modules/services/ui
+  - Executes on `pull_request` and `push` to `main` / `dev_micropython`
+
+These workflows validate MicroPython firmware logic that can run on host CI, while device/HIL tests remain manual or bench-driven.
+
 **Device side**: `uart_capture_task` is added automatically to the async task list in `main.py` when `services/uart_capture_service.py` is deployed on the device (it is part of the standard deploy set via `deploy.ps1`).
 
 **UART snapshot output format**:
@@ -523,4 +540,3 @@ python -m pytest src/weather_station_mpy/tests/test_capture_display_tool.py -v
 | `-203` | `EAI_MEMORY` — DNS resolver out of heap | Fragmented heap after boot | Retried automatically (3×) with gc.collect() |
 | `105` | `ENOBUFS` — lwIP PCB pool exhausted | Too many concurrent sockets | Web config UI is disabled by default; fix root cause |
 | `118` | `EHOSTUNREACH` | WiFi route unavailable | Auto-heal reconnect triggers after 3 consecutive errors |
-
