@@ -1,0 +1,103 @@
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+ets Jun  8 2016 00:22:57
+
+rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:2
+load:0x3fff0030,len:4200
+load:0x40078000,len:15236
+load:0x40080400,len:3332
+entry 0x400805a8
+[BOOT] weather_station_mpy boot.py
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[WiFi] Connecting to IOT
+[WiFi] status=1001
+[WiFi] Connected, IP: 192.168.1.43
+[NTP] Time synced (UTC): 23:50:39
+[OWM] startup fetch attempt 1/3
+[OWM] startup fetch OK: 7.1C Clear
+[DISP] ST7789 initialized (improved UI)
+[CAP] pixel capture ready (test mode)
+[CAP] arm failed: low heap (54608 < 163104)
+[WEB] Disabled in config
+[MEM] Free heap: 42464 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=1 — retry in 10s
+[Solar] Disabled in config
+[PC] fetch error: -203
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.43', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 20s after 1 consecutive failures
+[ESP] RAM 40kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=2 — retry in 30s
+[PC] fetch error: -203
+[PC] backoff 40s after 2 consecutive failures
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=3 — retry in 60s
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[MEM] Free heap: 41520 bytes
+[PC] fetch error: -203
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.43', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 80s after 3 consecutive failures
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=4 — retry in 120s
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[MEM] Free heap: 41520 bytes
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[PC] fetch error: -203
+[PC] backoff 160s after 4 consecutive failures
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[MEM] Free heap: 41520 bytes
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=5 — retry in 120s
+[OWM] DNS stuck — requesting WiFi reconnect to flush DNS
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[WiFi] forcing reconnect
+[WiFi] Connecting to IOT
+[MEM] Free heap: 42640 bytes
+[WiFi] status=1000
+[WiFi] status=15
+[ESP] RAM 40kB free  CPU 160MHz
+[WiFi] scan error: Wifi Unknown Error 0x0102
+[WiFi] BSSID scan: AP not visible, cannot pin BSSID
+[WiFi] status=15 ASSOC_FAIL — AP rejected association, longer backoff needed
+[WiFi] Connect timeout - offline mode
+[WiFi] ASSOC_FAIL #1 - radio off, backoff 120s (next retry in 120s)
+[WiFi] radio OFF during backoff
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz

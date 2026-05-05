@@ -1199,6 +1199,20 @@ async def app_main():
     elif online and weather_enabled and not startup_bootstrap_enabled:
         print("[OWM] startup bootstrap disabled (config)")
 
+    # Pre-resolve OWM hostname before display init so weather_task can bypass
+    # DNS for all subsequent fetches.  After DisplayManager.init() the SPI DMA
+    # buffers claim all contiguous DMA-capable RAM; lwIP's MEMP_NETDB query
+    # struct then fails to allocate (EAI_MEMORY).  Caching the IP here lets
+    # _get() substitute the hostname with the IP + Host header.
+    if online and weather_enabled and not _bootstrap_dns_failed:
+        try:
+            from services.weather_service import pre_resolve_owm as _pre_resolve_owm
+            _pre_resolve_owm()
+            del _pre_resolve_owm
+        except Exception as _pre_exc:
+            print("[OWM] pre-resolve import error: %s" % _pre_exc)
+        gc.collect()
+
     # Init display AFTER OWM bootstrap. gc.collect() above freed the OWM
     # transient socket+JSON allocations (~7 KB). Display init then has access
     # to those freed blocks for its SPI DMA buffer allocation.

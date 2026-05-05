@@ -8,11 +8,68 @@ try:
 except ImportError:
     requests = None
 
+try:
+    import ujson as _json
+except ImportError:
+    import json as _json
+
 from compat import ticks_ms
 import gc
 
 
 _DAYS = ("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+
+OWM_HOST = "api.openweathermap.org"
+
+# Pre-resolved socket address for OWM.  Set by pre_resolve_owm() before
+# display init while DMA-capable RAM is still plentiful.
+#
+# After DisplayManager.init() the SPI DMA buffers consume all contiguous
+# DMA-capable RAM so lwIP's getaddrinfo() fails with EAI_MEMORY (-203) for
+# ANY host — even IP literals — because the DNS infrastructure allocates
+# from the same pool.  Storing the raw addrinfo tuple here lets _get() use
+# raw sockets with sock.connect(_OWM_CACHED_ADDR) which bypasses
+# getaddrinfo entirely (MicroPython's socket.connect resolves a string-tuple
+# via netutils_parse_ipv4_addr, not getaddrinfo).
+_OWM_CACHED_ADDR = None  # addrinfo result tuple, e.g. ('5.9.82.93', 80)
+_OWM_CACHED_IP = None    # human-readable IP string for logging
+
+
+def pre_resolve_owm():
+    """Resolve OWM hostname while DMA RAM is still available (before display init).
+
+    Stores the full addrinfo tuple in _OWM_CACHED_ADDR.  WeatherService._get()
+    uses this tuple to connect via raw socket, completely bypassing getaddrinfo.
+    """
+    global _OWM_CACHED_ADDR, _OWM_CACHED_IP
+    try:
+        try:
+            import usocket as _sock
+        except ImportError:
+            import socket as _sock
+        info = _sock.getaddrinfo(OWM_HOST, 80, 0, _sock.SOCK_STREAM)
+        _OWM_CACHED_ADDR = info[0][-1]
+        _OWM_CACHED_IP = _OWM_CACHED_ADDR[0] if isinstance(_OWM_CACHED_ADDR, tuple) else str(_OWM_CACHED_ADDR)
+        print("[OWM] pre-resolved %s -> %s" % (OWM_HOST, _OWM_CACHED_IP))
+    except Exception as exc:
+        print("[OWM] pre-resolve failed: %s" % exc)
+    finally:
+        gc.collect()
+
+
+class _OWMResponse:
+    """Minimal urequests-compatible response backed by raw bytes."""
+    __slots__ = ("status_code", "_body")
+
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self._body = body
+
+    def json(self):
+        return _json.loads(self._body)
+
+    def close(self):
+        pass
 
 
 class WeatherService:
@@ -215,15 +272,37 @@ class WeatherService:
 
     @staticmethod
     def _get(url, timeout_s=3):
-        """GET with timeout and DNS-failure retry.
+        """GET with raw-socket fast-path and urequests fallback.
+
+        When _OWM_CACHED_ADDR is set (pre-resolved before display init),
+        uses a raw socket and calls sock.connect(_OWM_CACHED_ADDR) directly.
+        This bypasses getaddrinfo() which fails with EAI_MEMORY after display
+        SPI DMA buffers exhaust the DMA-capable heap.
+
+        Falls back to urequests when the cached address is absent (first boot,
+        bootstrap phase, or host-side tests where the fast-path isn't needed).
 
         Retries up to 3 times on transient DNS errors:
           OSError(-202) = EAI_FAIL  — DNS server returned failure
           OSError(-203) = EAI_MEMORY — DNS resolver out of heap memory
-
-        A gc.collect() is run before each retry to free fragmented heap.
-        Other OSErrors propagate immediately.
         """
+        if _OWM_CACHED_ADDR is not None:
+            for attempt in range(3):
+                if attempt > 0:
+                    gc.collect()
+                try:
+                    return WeatherService._get_socket(url, _OWM_CACHED_ADDR, OWM_HOST, timeout_s)
+                except OSError as exc:
+                    code = exc.args[0] if exc.args else None
+                    if code in (-202, -203):
+                        continue  # retry on DNS-style errors
+                    raise
+            # All retries exhausted — raise the last error via urequests path
+            # (will re-raise EAI_MEMORY and let weather_task handle backoff)
+
+        if requests is None:
+            raise RuntimeError("urequests unavailable and no cached OWM address")
+
         last_exc = None
         for attempt in range(3):
             if attempt > 0:
@@ -240,3 +319,73 @@ class WeatherService:
                     continue
                 raise
         raise last_exc
+
+    @staticmethod
+    def _get_socket(url, addr, host, timeout_s):
+        """Raw-socket HTTP GET that connects via a pre-resolved address tuple.
+
+        sock.connect(addr) where addr = ('ip', port) uses MicroPython's
+        netutils_parse_ipv4_addr internally — no getaddrinfo call.
+        """
+        try:
+            import usocket as _socket
+        except ImportError:
+            import socket as _socket
+
+        # Extract path+query from URL.  URL is always http://<host>/<path>.
+        after_scheme = url[7:]  # strip "http://"
+        slash = after_scheme.find("/")
+        path = after_scheme[slash:] if slash >= 0 else "/"
+
+        sock = None
+        try:
+            sock = _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM)
+            try:
+                sock.settimeout(timeout_s)
+            except Exception:
+                pass
+            sock.connect(addr)
+
+            req = (
+                "GET %s HTTP/1.0\r\n"
+                "Host: %s\r\n"
+                "Connection: close\r\n"
+                "Accept: application/json\r\n"
+                "\r\n"
+            ) % (path, host)
+            sock.send(req.encode("utf-8"))
+
+            # Read up to 28 KB — enough for current (~1.5 KB) and forecast
+            # (~15-20 KB).  MicroPython gc.collect() is called by callers.
+            MAX_BYTES = 28672
+            chunks = []
+            total = 0
+            while True:
+                chunk = sock.recv(1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > MAX_BYTES:
+                    raise RuntimeError("OWM response too large (>%d)" % MAX_BYTES)
+                chunks.append(chunk)
+
+            if not chunks:
+                raise RuntimeError("OWM empty response")
+
+            raw = b"".join(chunks)
+            sep = raw.find(b"\r\n\r\n")
+            if sep < 0:
+                raise RuntimeError("OWM missing header separator")
+
+            status_line = raw[: raw.find(b"\r\n")].decode("utf-8")
+            parts = status_line.split(" ", 2)
+            status_code = int(parts[1]) if len(parts) >= 2 else 0
+
+            body = raw[sep + 4 :]
+            return _OWMResponse(status_code, body)
+        finally:
+            if sock is not None:
+                try:
+                    sock.close()
+                except Exception:
+                    pass

@@ -59,7 +59,11 @@ try {
 
     # Compile main.py to _main.mpy (pre-compiled bytecode avoids heap fragmentation at boot).
     $mpyCross = Join-Path (Split-Path $scriptDir -Parent) "..\\.venv\\Scripts\\mpy-cross"
-    if (-not (Test-Path $mpyCross)) {
+    if (-not (Test-Path ($mpyCross + ".exe")) -and -not (Test-Path $mpyCross)) {
+        # Try one level up (repo root .venv)
+        $mpyCross = Join-Path (Split-Path (Split-Path $scriptDir -Parent) -Parent) ".venv\\Scripts\\mpy-cross"
+    }
+    if (-not (Test-Path ($mpyCross + ".exe")) -and -not (Test-Path $mpyCross)) {
         $mpyCross = "mpy-cross"
     }
     Write-Host "[DEPLOY] Compiling main.py -> _main.mpy"

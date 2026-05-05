@@ -39,9 +39,18 @@ class MetricsService:
             try:
                 payload = self._fetch_json_socket(host, port, path, timeout_s)
                 return self._map_payload(payload)
-            except Exception:
-                # Keep host-side/unit-test behavior compatible by falling back to
-                # the existing urequests path when available.
+            except Exception as _sock_exc:
+                # On MicroPython (ESP32) never fall back to urequests for IP
+                # literals: urequests always calls getaddrinfo which fails with
+                # EAI_MEMORY (-203) after display SPI DMA buffers are allocated.
+                # On CPython (host tests) urequests isn't present so this path
+                # is a no-op anyway.
+                try:
+                    import sys as _sys
+                    if _sys.implementation.name == "micropython":
+                        raise
+                except ImportError:
+                    pass
                 if requests is None:
                     raise
 

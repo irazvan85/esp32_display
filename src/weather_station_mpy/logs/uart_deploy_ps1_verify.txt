@@ -1,0 +1,44 @@
+
+MPY: soft reboot
+[BOOT] weather_station_mpy boot.py
+
+================================================
+  Retro Weather Clock MicroPython
+================================================
+
+[WiFi] startup connect attempt 1/4
+[NTP] Sync failed: [Errno 116] ETIMEDOUT
+[NTP] Time synced (UTC): 17:55:12
+[OWM] startup fetch attempt 1/3
+[OWM] startup fetch OK: 21.1C Clear
+[DISP] ST7789 initialized (improved UI)
+[CAP] pixel capture ready (test mode)
+[CAP] arm failed: low heap (54704 < 163104)
+[WEB] Disabled in config
+[MEM] Free heap: 42512 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=1 — retry in 10s
+[Solar] Disabled in config
+[PC] fetch error: -203
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.43', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 20s after 1 consecutive failures
+[ESP] RAM 40kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=2 — retry in 30s
+[PC] fetch error: -203
+[PC] backoff 40s after 2 consecutive failures
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[OWM] DNS memory error (EAI_MEMORY) streak=3 — retry in 60s
+[ESP] RAM 40kB free  CPU 160MHz
+[ESP] RAM 40kB free  CPU 160MHz
+[MEM] Free heap: 41552 bytes
+[PC] fetch error: -203
+[PCDBG] endpoint 192.168.1.25:8765
+[PCDBG] ifconfig ('192.168.1.43', '255.255.255.0', '192.168.1.1', '192.168.1.1')
+[PCDBG] resolve ok ('192.168.1.25', 8765)
+[PCDBG] connect err -203
+[PC] backoff 80s after 3 consecutive failures
+[ESP] RAM 40kB free  CPU 160MHz

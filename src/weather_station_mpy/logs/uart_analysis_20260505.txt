@@ -1,0 +1,36 @@
+[BTN] Page -> 1
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[MEM] Free heap: 42752 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[MEM] Free heap: 42784 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[MEM] Free heap: 42752 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[MEM] Free heap: 42752 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[MEM] Free heap: 42752 bytes
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
+[ESP] RAM 41kB free  CPU 160MHz
