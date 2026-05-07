@@ -515,12 +515,6 @@ async def weather_task(state, weather_svc, cache_svc, cfg):
                         "[OWM] DNS failure (EAI_FAIL) streak=%d — retry in %ds"
                         % (_dns_fail_streak, _owm_retry_ms // 1000)
                     )
-                # After 5 consecutive DNS failures the WiFi stack / DNS resolver
-                # is likely stuck; force a full WiFi reconnect to flush the state.
-                if _dns_fail_streak >= 5 and not state.force_wifi_reconnect:
-                    print("[OWM] DNS stuck — requesting WiFi reconnect to flush DNS")
-                    state.force_wifi_reconnect = True
-                    _dns_fail_streak = 0
             else:
                 _owm_retry_ms = retry_ms
                 print("[OWM] fetch error: %s" % exc)
@@ -1194,6 +1188,19 @@ async def app_main():
                 except Exception as _exc:
                     print("[OWM] startup fetch error: %s" % _exc)
                     gc.collect()
+            # Also fetch forecast before display init while heap is plentiful.
+            # This seeds pages 1 (Tomorrow) and 2 (5-Day) at first render.
+            if startup_weather is not None and gc.mem_free() > 45_000:
+                try:
+                    gc.collect()
+                    startup_forecast, startup_trend = _wx.fetch_forecast_bundle()
+                    gc.collect()
+                    print(
+                        "[OWM] startup forecast OK: %d days" % len(startup_forecast)
+                    )
+                except Exception as _fc_exc:
+                    print("[OWM] startup forecast error: %s" % _fc_exc)
+                    gc.collect()
             del _wx, _BootWX
             gc.collect()
     elif online and weather_enabled and not startup_bootstrap_enabled:
@@ -1237,9 +1244,15 @@ async def app_main():
             if cached_weather is not None and bool(cached_weather.get("valid", False)):
                 cached_weather["fetched_ms"] = ticks_ms()
                 startup_weather = cached_weather
-                startup_forecast = cached.get("forecast") or []
-                startup_trend = cached.get("trend") or []
                 print("[OWM] startup weather restored from cache")
+            # Restore forecast independently — even if weather is stale/null,
+            # cached forecast data should still populate pages 1 and 2.
+            cached_forecast = cached.get("forecast") or []
+            cached_trend = cached.get("trend") or []
+            if cached_forecast:
+                startup_forecast = cached_forecast
+                startup_trend = cached_trend
+                print("[OWM] startup forecast restored from cache (%d days)" % len(startup_forecast))
 
         # If startup is offline and no valid cache exists, expose a clear
         # placeholder instead of a blank weather panel.

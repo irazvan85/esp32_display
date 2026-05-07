@@ -31,7 +31,7 @@ OWM_HOST = "api.openweathermap.org"
 # raw sockets with sock.connect(_OWM_CACHED_ADDR) which bypasses
 # getaddrinfo entirely (MicroPython's socket.connect resolves a string-tuple
 # via netutils_parse_ipv4_addr, not getaddrinfo).
-_OWM_CACHED_ADDR = None  # addrinfo result tuple, e.g. ('5.9.82.93', 80)
+_OWM_CACHED_ADDR = None  # (bytes4, port) or ('ip_str', port) — set by pre_resolve_owm()
 _OWM_CACHED_IP = None    # human-readable IP string for logging
 
 
@@ -48,8 +48,22 @@ def pre_resolve_owm():
         except ImportError:
             import socket as _sock
         info = _sock.getaddrinfo(OWM_HOST, 80, 0, _sock.SOCK_STREAM)
-        _OWM_CACHED_ADDR = info[0][-1]
-        _OWM_CACHED_IP = _OWM_CACHED_ADDR[0] if isinstance(_OWM_CACHED_ADDR, tuple) else str(_OWM_CACHED_ADDR)
+        raw_addr = info[0][-1]  # ('5.9.82.93', 80)
+        ip_str = raw_addr[0] if isinstance(raw_addr, tuple) else str(raw_addr)
+        _OWM_CACHED_IP = ip_str
+        # Store IP as 4-byte bytes (network/big-endian order).
+        # MicroPython modlwip.c netutils_parse_ipv4_addr() has a len==4 fast
+        # path that copies bytes directly without calling lwip_getaddrinfo.
+        # This fully bypasses the MEMP_NETDB allocation that fails with
+        # EAI_MEMORY (-203) after the display SPI DMA buffers are allocated.
+        try:
+            ip_bytes = bytes(int(x) for x in ip_str.split("."))
+            if len(ip_bytes) == 4:
+                _OWM_CACHED_ADDR = (ip_bytes, 80)
+            else:
+                _OWM_CACHED_ADDR = raw_addr  # fallback: string tuple
+        except Exception:
+            _OWM_CACHED_ADDR = raw_addr  # fallback: string tuple
         print("[OWM] pre-resolved %s -> %s" % (OWM_HOST, _OWM_CACHED_IP))
     except Exception as exc:
         print("[OWM] pre-resolve failed: %s" % exc)
@@ -276,8 +290,13 @@ class WeatherService:
 
         When _OWM_CACHED_ADDR is set (pre-resolved before display init),
         uses a raw socket and calls sock.connect(_OWM_CACHED_ADDR) directly.
-        This bypasses getaddrinfo() which fails with EAI_MEMORY after display
-        SPI DMA buffers exhaust the DMA-capable heap.
+        pre_resolve_owm() stores the IP as 4-byte bytes so that modlwip.c's
+        netutils_parse_ipv4_addr() uses its len==4 fast path, bypassing
+        lwip_getaddrinfo() entirely.  getaddrinfo() fails with EAI_MEMORY
+        (-203) after display SPI DMA buffers exhaust the MEMP_NETDB pool.
+        When _OWM_CACHED_ADDR retries are exhausted the last exception is
+        raised immediately; requests.get() fallback is NOT used (it would also
+        call getaddrinfo and fail identically).
 
         Falls back to urequests when the cached address is absent (first boot,
         bootstrap phase, or host-side tests where the fast-path isn't needed).
@@ -287,6 +306,7 @@ class WeatherService:
           OSError(-203) = EAI_MEMORY — DNS resolver out of heap memory
         """
         if _OWM_CACHED_ADDR is not None:
+            _last_socket_exc = None
             for attempt in range(3):
                 if attempt > 0:
                     gc.collect()
@@ -295,10 +315,13 @@ class WeatherService:
                 except OSError as exc:
                     code = exc.args[0] if exc.args else None
                     if code in (-202, -203):
-                        continue  # retry on DNS-style errors
+                        _last_socket_exc = exc
+                        continue  # retry on transient DNS-style errors
                     raise
-            # All retries exhausted — raise the last error via urequests path
-            # (will re-raise EAI_MEMORY and let weather_task handle backoff)
+            # All retries exhausted — raise instead of falling through to
+            # requests.get() which also calls getaddrinfo and will also fail.
+            if _last_socket_exc is not None:
+                raise _last_socket_exc
 
         if requests is None:
             raise RuntimeError("urequests unavailable and no cached OWM address")

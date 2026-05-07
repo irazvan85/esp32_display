@@ -27,7 +27,9 @@ class WeatherCacheService:
         forecast = self._sanitize_forecast(payload.get("forecast"))
         trend = self._sanitize_trend(payload.get("trend"))
 
-        if weather is None:
+        # Return None only if both weather and forecast are absent.
+        # Forecast can be restored independently even if weather is null/invalid.
+        if weather is None and not forecast:
             return None
 
         return {

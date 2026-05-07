@@ -139,5 +139,65 @@ class TestWeatherCacheServiceRoundTrip(unittest.TestCase):
             os.unlink(tmp_path)
 
 
+class TestWeatherCacheLoadDecoupled(unittest.TestCase):
+    _FORECAST_DAY = {
+        "date": "2026-05-05",
+        "day": "Monday",
+        "temp_min": 10.0,
+        "temp_max": 18.0,
+        "humidity": 55,
+        "condition": "Clear",
+        "condition_id": 800,
+    }
+
+    def test_load_null_weather_empty_forecast_returns_none(self):
+        with tempfile.NamedTemporaryFile(delete=False, mode="w", encoding="utf-8") as handle:
+            tmp_path = handle.name
+            handle.write(json.dumps({"v": 1, "weather": None, "forecast": [], "trend": []}))
+        try:
+            svc = WeatherCacheService(tmp_path)
+            self.assertIsNone(svc.load())
+        finally:
+            os.unlink(tmp_path)
+
+    def test_load_null_weather_with_forecast_returns_partial(self):
+        payload = {"v": 1, "weather": None, "forecast": [self._FORECAST_DAY], "trend": []}
+        with tempfile.NamedTemporaryFile(delete=False, mode="w", encoding="utf-8") as handle:
+            tmp_path = handle.name
+            handle.write(json.dumps(payload))
+        try:
+            svc = WeatherCacheService(tmp_path)
+            loaded = svc.load()
+            self.assertIsInstance(loaded, dict)
+            self.assertIsNone(loaded["weather"])
+            self.assertEqual(len(loaded["forecast"]), 1)
+        finally:
+            os.unlink(tmp_path)
+
+    def test_load_invalid_weather_with_forecast_returns_partial(self):
+        weather = {
+            "valid": False,
+            "temp_c": 5.0,
+            "feels_like_c": 3.5,
+            "humidity": 80,
+            "condition": "Fog",
+            "condition_id": 741,
+            "wind_ms": 1.2,
+            "fetched_ms": 0,
+        }
+        payload = {"v": 1, "weather": weather, "forecast": [self._FORECAST_DAY], "trend": []}
+        with tempfile.NamedTemporaryFile(delete=False, mode="w", encoding="utf-8") as handle:
+            tmp_path = handle.name
+            handle.write(json.dumps(payload))
+        try:
+            svc = WeatherCacheService(tmp_path)
+            loaded = svc.load()
+            self.assertIsInstance(loaded, dict)
+            self.assertFalse(loaded["weather"]["valid"])
+            self.assertEqual(len(loaded["forecast"]), 1)
+        finally:
+            os.unlink(tmp_path)
+
+
 if __name__ == "__main__":
     unittest.main()

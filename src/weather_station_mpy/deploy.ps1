@@ -72,6 +72,23 @@ try {
         throw "mpy-cross compilation failed"
     }
 
+    # Compile all .py files in package directories to .mpy so the deployed
+    # bytecode always reflects the latest Python source changes.
+    # MicroPython prefers .mpy over .py; stale .mpy files would hide source fixes.
+    $packageDirs = @("config", "services", "ui")
+    foreach ($pkgDir in $packageDirs) {
+        Get-ChildItem -Path $pkgDir -Filter "*.py" -Recurse | ForEach-Object {
+            $srcPy = $_.FullName
+            $outMpy = [System.IO.Path]::ChangeExtension($srcPy, ".mpy")
+            $label = $pkgDir + "/" + $_.Name
+            Write-Host "[DEPLOY] Compiling $label"
+            & $mpyCross -march=xtensa $srcPy -o $outMpy
+            if ($LASTEXITCODE -ne 0) {
+                Write-Warning "[DEPLOY] mpy-cross failed for $label — .py will be used as fallback"
+            }
+        }
+    }
+
     # Deploy boot.py.
     Write-Host "[DEPLOY] copy boot.py"
     Invoke-Mpremote connect $Port soft-reset fs cp "boot.py" ":/boot.py"
