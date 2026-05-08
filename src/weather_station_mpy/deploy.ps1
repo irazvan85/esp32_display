@@ -84,7 +84,7 @@ try {
             Write-Host "[DEPLOY] Compiling $label"
             & $mpyCross -march=xtensa $srcPy -o $outMpy
             if ($LASTEXITCODE -ne 0) {
-                Write-Warning "[DEPLOY] mpy-cross failed for $label — .py will be used as fallback"
+                Write-Warning "[DEPLOY] mpy-cross failed for $label - .py will be used as fallback"
             }
         }
     }

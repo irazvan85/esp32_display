@@ -1190,7 +1190,8 @@ async def app_main():
                     gc.collect()
             # Also fetch forecast before display init while heap is plentiful.
             # This seeds pages 1 (Tomorrow) and 2 (5-Day) at first render.
-            if startup_weather is not None and gc.mem_free() > 45_000:
+            gc.collect()  # free weather JSON fragments before forecast heap check
+            if startup_weather is not None and gc.mem_free() > 40_000:
                 try:
                     gc.collect()
                     startup_forecast, startup_trend = _wx.fetch_forecast_bundle()
@@ -1201,6 +1202,8 @@ async def app_main():
                 except Exception as _fc_exc:
                     print("[OWM] startup forecast error: %s" % _fc_exc)
                     gc.collect()
+            elif startup_weather is not None:
+                print("[OWM] startup forecast skipped — heap %d < 40000" % gc.mem_free())
             del _wx, _BootWX
             gc.collect()
     elif online and weather_enabled and not startup_bootstrap_enabled:
@@ -1236,23 +1239,28 @@ async def app_main():
     from services.weather_cache_service import WeatherCacheService
 
     weather_cache_svc = WeatherCacheService("weather_cache.json")
-    if weather_enabled and startup_weather is None:
-        print("[OWM] startup weather unavailable; trying cache")
+    if weather_enabled and (startup_weather is None or startup_forecast is None):
+        if startup_weather is None:
+            print("[OWM] startup weather unavailable; trying cache")
+        else:
+            print("[OWM] startup forecast missing; checking cache")
         cached = weather_cache_svc.load()
         if cached is not None:
-            cached_weather = cached.get("weather")
-            if cached_weather is not None and bool(cached_weather.get("valid", False)):
-                cached_weather["fetched_ms"] = ticks_ms()
-                startup_weather = cached_weather
-                print("[OWM] startup weather restored from cache")
+            if startup_weather is None:
+                cached_weather = cached.get("weather")
+                if cached_weather is not None and bool(cached_weather.get("valid", False)):
+                    cached_weather["fetched_ms"] = ticks_ms()
+                    startup_weather = cached_weather
+                    print("[OWM] startup weather restored from cache")
             # Restore forecast independently — even if weather is stale/null,
             # cached forecast data should still populate pages 1 and 2.
-            cached_forecast = cached.get("forecast") or []
-            cached_trend = cached.get("trend") or []
-            if cached_forecast:
-                startup_forecast = cached_forecast
-                startup_trend = cached_trend
-                print("[OWM] startup forecast restored from cache (%d days)" % len(startup_forecast))
+            if startup_forecast is None:
+                cached_forecast = cached.get("forecast") or []
+                cached_trend = cached.get("trend") or []
+                if cached_forecast:
+                    startup_forecast = cached_forecast
+                    startup_trend = cached_trend
+                    print("[OWM] startup forecast restored from cache (%d days)" % len(startup_forecast))
 
         # If startup is offline and no valid cache exists, expose a clear
         # placeholder instead of a blank weather panel.
